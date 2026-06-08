@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HDMS - Supervisores</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #F5F5F7; }
+        .glass-card { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+        .glass-header { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+        .toggle-checkbox:checked { right: 0; border-color: #34C759; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #34C759; }
+        .toggle-checkbox:disabled + .toggle-label { opacity: 0.5; cursor: not-allowed; }
+    </style>
+</head>
+<body class="text-slate-800 min-h-screen flex flex-col" onload="inicializarAplicacion()">
+
+    <div id="pantalla-login" class="hidden flex-1 flex items-center justify-center p-4">
+        <div class="glass-card w-full max-w-md rounded-[2rem] shadow-2xl border border-white/50 p-8 relative overflow-hidden">
+            
+            <div class="text-center mb-8 relative z-10">
+                <div class="flex justify-center items-center mb-6">
+                    <img src="https://raw.githubusercontent.com/fb-ilm/hdms.github.io/refs/heads/main/src/logo/logohdms.png" 
+                    alt="Logo Faux & Wood" 
+                    class="w-60 h-20 object-contain  rounded-2xl">
+                </div>
+                <h2 class="text-2xl font-bold text-slate-900">Portal Supervisor</h2>
+                <p class="text-sm text-slate-500 mt-1">Control de procesos</p>
+            </div>
+
+            <div id="vista-login" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1 ml-1">ID Supervisor</label>
+                    <input id="input-sup-user" type="text" class="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 uppercase transition">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1 ml-1">Contraseña</label>
+                    <input id="input-sup-pass" type="password" class="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 transition">
+                </div>
+                <button id="btn-sup-login" onclick="iniciarSesion()" class="w-full mt-4 bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-xl transition shadow-lg">
+                    Ingresar
+                </button>
+            </div>
+
+            <div id="vista-setup" class="hidden space-y-4">
+                <div class="bg-blue-50 p-4 rounded-xl mb-4 border border-blue-100">
+                    <h3 class="text-sm font-bold text-blue-800">Hola, <span id="lbl-setup-nombre"></span></h3>
+                    <p class="text-xs text-blue-600">Establezca una contraseña inicial.</p>
+                </div>
+                <div>
+                    <input id="input-setup-pass1" type="password" placeholder="Nueva Contraseña" class="w-full p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 mb-2">
+                    <input id="input-setup-pass2" type="password" placeholder="Confirmar Contraseña" class="w-full p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500">
+                </div>
+                <button id="btn-sup-setup" onclick="guardarPassword()" class="w-full bg-green-600 text-white font-bold py-3.5 rounded-xl hover:bg-green-700">Guardar Contraseña</button>
+                <button onclick="cancelarSetup()" class="w-full text-xs text-slate-500 py-2">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="pantalla-dashboard" class="hidden flex-1 flex flex-col">
+        <header class="glass-header sticky top-0 z-50 border-b border-slate-200 px-6 py-4 flex justify-between items-center shadow-sm">
+            <div class="flex items-center gap-4">
+                <div class="flex items-center">
+                    <img src="https://raw.githubusercontent.com/fb-ilm/hdms.github.io/refs/heads/main/src/logo/logohdms.png" alt="Logo F&W" class="h-8 w-auto object-contain hover:opacity-90 transition-opacity">
+                </div>
+                <h1 class="text-xl font-semibold hidden sm:block text-slate-900">Control de Estaciones</h1>
+            </div>
+            <div class="flex items-center gap-3">
+                <img id="img-perfil" src="" alt="Perfil" class="w-10 h-10 rounded-full border-2 border-white shadow-sm object-cover bg-slate-200">
+                <div class="text-right hidden sm:block">
+                    <p class="text-sm font-semibold text-slate-900" id="lbl-nombre-sup">---</p>
+                    <p class="text-xs text-slate-500">Supervisor</p>
+                </div>
+                <button onclick="cerrarSesion()" class="ml-2 text-slate-400 hover:text-red-500 transition" title="Cerrar Sesión">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                </button>
+            </div>
+        </header>
+
+        <main class="max-w-7xl mx-auto w-full p-4 sm:p-8">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100"><span class="text-xs font-semibold text-slate-400 uppercase">Total</span><span class="block text-3xl font-bold text-slate-800" id="kpi-total">0</span></div>
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100"><span class="text-xs font-semibold text-blue-500 uppercase">Habilitadas</span><span class="block text-3xl font-bold text-blue-600" id="kpi-activas">0</span></div>
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100"><span class="text-xs font-semibold text-green-500 uppercase">Auditadas</span><span class="block text-3xl font-bold text-green-600" id="kpi-auditadas">0</span></div>
+                <div class="bg-slate-900 p-5 rounded-2xl shadow-sm text-white"><span class="text-xs font-medium text-slate-300 uppercase">Cumplimiento</span><span class="block text-4xl font-bold" id="kpi-cumplimiento">0%</span></div>
+            </div>
+
+            <div class="flex flex-col md:flex-row gap-3 mb-6 bg-white p-3 rounded-2xl shadow-sm border border-slate-100">
+                <input type="text" id="input-buscador" onkeyup="filtrarEstaciones()" placeholder="Buscar estación..." class="flex-1 px-4 py-2 bg-slate-50 rounded-xl focus:ring-2 focus:ring-blue-100 text-sm border-none">
+                
+                <select id="select-prefijo" onchange="filtrarEstaciones()" class="bg-slate-50 text-slate-700 text-sm rounded-xl px-4 py-2 cursor-pointer focus:ring-2 focus:ring-blue-100 border-none">
+                    <option value="TODOS">Todos los Prefijos</option>
+                </select>
+
+                <select id="select-filtro" onchange="filtrarEstaciones()" class="bg-slate-50 text-slate-700 text-sm rounded-xl px-4 py-2 cursor-pointer focus:ring-2 focus:ring-blue-100 border-none">
+                    <option value="TODAS">Todos los Estatus</option>
+                    <option value="COMPLETO">Completadas (Sin Auditar)</option>
+                    <option value="AUDITADO">Auditadas (Ok)</option>
+                    <option value="HALLAZGO">Hallazgos (Requiere Acción)</option>
+                    <option value="PENDIENTE">Pendientes (Activas)</option>
+                    <option value="INACTIVO">Inactivas</option>
+                </select>
+                
+                <button onclick="cargarDatosDashboard()" class="p-2 bg-slate-50 rounded-xl hover:bg-slate-200 transition">
+                    <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                </button>
+            </div>
+
+            <div id="estado-carga" class="hidden text-center py-10 text-slate-400">Sincronizando con la planta...</div>
+
+            <div class="hidden md:block bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                <table class="w-full text-left">
+                    <thead class="bg-slate-50 text-xs uppercase text-slate-500 border-b">
+                        <tr><th class="p-4">Estación</th><th class="p-4">Proceso</th><th class="p-4 text-center">Activar Hoy</th><th class="p-4">Estatus</th><th class="p-4">Operador / Hora</th></tr>
+                    </thead>
+                    <tbody id="tbody-estaciones" class="text-sm divide-y divide-slate-100"></tbody>
+                </table>
+            </div>
+            <div id="grid-movil" class="grid grid-cols-1 gap-4 md:hidden"></div>
+        </main>
+    </div>
+
+    <div id="modal-hallazgo" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 transition-opacity">
+        <div class="bg-white p-8 rounded-[2rem] shadow-2xl max-w-md w-full border border-slate-100 relative">
+            <button onclick="cerrarModalHallazgo()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 font-bold w-8 h-8 flex items-center justify-center bg-slate-50 rounded-full">✕</button>
+            <h3 class="font-bold text-slate-900 text-xl mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-sm">⚠</span>
+                Detalle del Hallazgo
+            </h3>
+            <div class="space-y-4 text-sm">
+                <div class="bg-red-50 p-4 rounded-xl border border-red-100">
+                    <span class="block text-[10px] font-bold uppercase text-red-400 mb-1">Observación de Calidad</span>
+                    <p class="text-red-900 font-medium" id="modal-obs-auditor">Cargando...</p>
+                </div>
+                <div>
+                    <span class="block text-[10px] font-bold uppercase text-slate-400 mb-1 flex justify-between">
+                        Acción Tomada (Supervisor) <span id="lbl-estado-accion" class="text-blue-500"></span>
+                    </span>
+                    <textarea id="modal-accion-sup" class="w-full p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 transition h-24 shadow-inner" placeholder="Describa la corrección aplicada en piso..."></textarea>
+                </div>
+                <button id="btn-guardar-accion" onclick="procesarAccionSupervisor()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-xl transition shadow-lg">
+                    Registrar Acción
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ¡¡IMPORTANTE!! REEMPLAZA ESTO CON LA URL DE TU SCRIPT
+        const API_URL = "https://script.google.com/macros/s/AKfycbzolSSsaBNs6AjIlVasOUVHqnqedETi-Z2WSrHufn05yGyy-6n_fO_ITIxlbX28Mc2V/exec";
+
+        let sesionSup = JSON.parse(localStorage.getItem('fw_sesion_sup')) || null;
+        let datosGlobales = [];
+        let usuarioTempSetup = "";
+        let hashActivoAccion = "";
+
+        // API Fetch General
+        async function llamarAPI(accion, datos = {}) {
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ accion, ...datos }),
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+                });
+                return await response.json();
+            } catch (error) {
+                return { exito: false, mensaje: "Error de red." };
+            }
+        }
+
+        async function generarHash(mensaje) {
+            const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(mensaje));
+            return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        function toggleLoader(id, estado, txtOriginal = '') {
+            const btn = document.getElementById(id);
+            if(estado) { btn.disabled = true; btn.innerText = "Cargando..."; } 
+            else { btn.disabled = false; btn.innerText = txtOriginal; }
+        }
+
+        // INIT
+        function inicializarAplicacion() {
+            if (sesionSup) {
+                document.getElementById('pantalla-login').classList.add('hidden');
+                document.getElementById('pantalla-dashboard').classList.remove('hidden');
+                document.getElementById('lbl-nombre-sup').innerText = sesionSup.nombre;
+
+                if(sesionSup.foto) {
+                    document.getElementById('img-perfil').src = sesionSup.foto;
+                }
+                cargarDatosDashboard();
+            } else {
+                document.getElementById('pantalla-login').classList.remove('hidden');
+                document.getElementById('pantalla-dashboard').classList.add('hidden');
+            }
+        }
+
+        // LOGIN
+        async function iniciarSesion() {
+            const user = document.getElementById('input-sup-user').value.trim();
+            const pass = document.getElementById('input-sup-pass').value.trim();
+            if(!user || !pass) return alert("Complete los campos");
+
+            toggleLoader('btn-sup-login', true);
+            const hash = await generarHash(pass);
+            const res = await llamarAPI('autenticarSupervisor', { usuario: user, passwordHash: hash });
+            toggleLoader('btn-sup-login', false, 'Ingresar al Panel');
+
+            if (res.requiereSetup) {
+                usuarioTempSetup = res.id;
+                document.getElementById('lbl-setup-nombre').innerText = res.nombre;
+                document.getElementById('vista-login').classList.add('hidden');
+                document.getElementById('vista-setup').classList.remove('hidden');
+            } else if (res.exito) {
+                localStorage.setItem('fw_sesion_sup', JSON.stringify(res));
+                sesionSup = res;
+                inicializarAplicacion();
+            } else { alert(res.mensaje); }
+        }
+
+        async function guardarPassword() {
+            const p1 = document.getElementById('input-setup-pass1').value;
+            const p2 = document.getElementById('input-setup-pass2').value;
+            if(p1.length < 6) return alert("Mínimo 6 caracteres.");
+            if(p1 !== p2) return alert("Las contraseñas no coinciden.");
+
+            toggleLoader('btn-sup-setup', true);
+            const res = await llamarAPI('configurarNuevoPassword', { usuario: usuarioTempSetup, nuevoPasswordHash: await generarHash(p1) });
+            toggleLoader('btn-sup-setup', false, 'Guardar Contraseña');
+
+            if(res.exito) { alert("Guardada. Inicie sesión."); cancelarSetup(); } else { alert(res.mensaje); }
+        }
+
+        function cancelarSetup() {
+            document.getElementById('input-setup-pass1').value = ''; document.getElementById('input-setup-pass2').value = '';
+            document.getElementById('vista-setup').classList.add('hidden'); document.getElementById('vista-login').classList.remove('hidden');
+        }
+
+        function cerrarSesion() { localStorage.removeItem('fw_sesion_sup'); location.reload(); }
+
+        // DASHBOARD Y TABLAS
+        async function cargarDatosDashboard(silencioso = false) {
+            if(!silencioso) document.getElementById('estado-carga').classList.remove('hidden');
+            const res = await llamarAPI('obtenerDashboardSupervisor');
+            if(!silencioso) document.getElementById('estado-carga').classList.add('hidden');
+
+            if(res.exito) {
+                datosGlobales = res.datos;
+                poblarFiltroPrefijos(datosGlobales);
+                filtrarEstaciones();
+            } else { alert("Error cargando datos: " + res.mensaje); }
+        }
+
+        function poblarFiltroPrefijos(datos) {
+            const select = document.getElementById('select-prefijo');
+            const prefijosUnicos = new Map();
+            datos.forEach(est => {
+                const partes = est.codigo.split('_');
+                if (partes.length >= 2) prefijosUnicos.set(`${partes[0]}_${partes[1]}`, est.proceso);
+            });
+            
+            // Para mantener la seleccion al actualizar
+            const valorActual = select.value;
+            select.innerHTML = '<option value="TODOS">Todos los Prefijos</option>';
+            prefijosUnicos.forEach((nombre, pre) => select.innerHTML += `<option value="${pre}">${pre} (${nombre})</option>`);
+            if([...select.options].some(o => o.value === valorActual)) select.value = valorActual;
+        }
+
+        async function cambiarEstadoEstacion(codigo, nuevoEstado) {
+            const est = datosGlobales.find(e => e.codigo === codigo);
+            if(est) { est.activa = nuevoEstado; est.estatus = nuevoEstado ? 'PENDIENTE' : 'INACTIVO'; filtrarEstaciones(); }
+            await llamarAPI('actualizarPlanificacion', { codigoEstacion: codigo, activar: nuevoEstado, supervisorId: sesionSup.id });
+        }
+
+        function filtrarEstaciones() {
+            const txt = document.getElementById('input-buscador').value.toLowerCase();
+            const estatusF = document.getElementById('select-filtro').value;
+            const prefijoF = document.getElementById('select-prefijo').value;
+
+            const activas = datosGlobales.filter(d => d.activa).length;
+            const completadas = datosGlobales.filter(d => d.estatus === 'COMPLETO' || d.estatus === 'AUDITADO' || d.estatus === 'HALLAZGO').length;
+            
+            document.getElementById('kpi-total').innerText = datosGlobales.length;
+            document.getElementById('kpi-activas').innerText = activas;
+            document.getElementById('kpi-auditadas').innerText = completadas;
+            document.getElementById('kpi-cumplimiento').innerText = activas > 0 ? Math.round((completadas / activas) * 100) + '%' : '0%';
+
+            const filtrados = datosGlobales.filter(est => 
+                (est.codigo.toLowerCase().includes(txt) || est.proceso.toLowerCase().includes(txt)) && 
+                (estatusF === 'TODAS' || est.estatus === estatusF) && 
+                (prefijoF === 'TODOS' || est.codigo.startsWith(prefijoF))
+            );
+
+            renderizarVistas(filtrados);
+        }
+
+        function renderizarVistas(datos) {
+            const tbody = document.getElementById('tbody-estaciones');
+            const grid = document.getElementById('grid-movil');
+            tbody.innerHTML = ''; grid.innerHTML = '';
+
+            datos.forEach((est, i) => {
+                let badge = 'bg-slate-100 text-slate-500', dot = 'bg-slate-300', btnHallazgo = '';
+                
+                // 1. Colores base
+                if (est.estatus === 'COMPLETO' || est.estatus === 'AUDITADO') { 
+                    badge = 'bg-green-100 text-green-700'; dot = 'bg-green-500'; 
+                } else if (est.estatus === 'PENDIENTE') { 
+                    badge = 'bg-red-100 text-red-700'; dot = 'bg-red-500 animate-pulse'; 
+                } else if (est.estatus === 'HALLAZGO') {
+                    badge = 'bg-red-600 text-white shadow-md'; dot = 'bg-red-600 animate-bounce';
+                }
+
+                // 2. Lógica del botón de Acción
+                // Si es un hallazgo activo, pedir que se registre acción
+                if (est.estatus === 'HALLAZGO' && !est.accionSupervisor) {
+                    btnHallazgo = `<button onclick="abrirModalHallazgo('${est.hash}')" class="mt-2 text-[10px] font-bold py-1 px-3 rounded-lg transition border text-red-600 bg-red-50 border-red-200 hover:bg-red-100">⚠ Registrar Acción</button>`;
+                } 
+                // Si ya se registró una acción (sin importar si el estatus ya cambió a COMPLETO), permitir consultarla
+                else if (est.accionSupervisor) {
+                    btnHallazgo = `<button onclick="abrirModalHallazgo('${est.hash}')" class="mt-2 text-[10px] font-bold py-1 px-3 rounded-lg transition border text-blue-600 border-blue-200 bg-blue-50">Ver Acción Tomada</button>`;
+                }
+
+                let disabled = (est.estatus === 'COMPLETO' || est.estatus === 'AUDITADO' || est.estatus === 'HALLAZGO') ? 'disabled' : '';
+
+                // ... (El resto del código de ESCRITORIO y MÓVIL se queda exactamente igual)
+                
+                // ESCRITORIO
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-50 border-b border-slate-100">
+                        <td class="p-4">
+                            <div class="flex items-center gap-2"><div class="w-2 h-2 rounded-full ${dot}"></div> <span class="font-mono font-bold">${est.codigo}</span></div>
+                            ${btnHallazgo}
+                        </td>
+                        <td class="p-4 text-xs text-slate-500">${est.proceso}</td>
+                        <td class="p-4 text-center">
+                            <div class="relative inline-block w-12 align-middle select-none">
+                                <input type="checkbox" id="dk-${i}" class="toggle-checkbox absolute w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer z-10 transition-all" ${est.activa?'checked':''} ${disabled} onchange="cambiarEstadoEstacion('${est.codigo}', this.checked)">
+                                <label for="dk-${i}" class="toggle-label block overflow-hidden h-6 rounded-full bg-slate-200"></label>
+                            </div>
+                        </td>
+                        <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-bold ${badge}">${est.estatus}</span></td>
+                        <td class="p-4"><div class="font-mono">${est.operador}</div><div class="text-[10px] text-slate-400">${est.hora}</div></td>
+                    </tr>`;
+
+                // MÓVIL
+                grid.innerHTML += `
+                    <div class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col">
+                        <div class="flex justify-between items-center mb-3">
+                            <div class="flex items-center gap-2"><div class="w-2 h-2 rounded-full ${dot}"></div><h3 class="font-mono font-bold">${est.codigo}</h3></div>
+                            <div class="relative inline-block w-12 select-none">
+                                <input type="checkbox" id="mb-${i}" class="toggle-checkbox absolute w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer z-10 transition-all" ${est.activa?'checked':''} ${disabled} onchange="cambiarEstadoEstacion('${est.codigo}', this.checked)">
+                                <label for="mb-${i}" class="toggle-label block overflow-hidden h-6 rounded-full bg-slate-200"></label>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center bg-slate-50 p-2 rounded-lg">
+                            <span class="px-2 py-1 rounded text-[10px] font-bold ${badge}">${est.estatus}</span>
+                            <div class="text-right text-xs"><span class="font-mono font-bold">${est.operador}</span> <span class="text-slate-400">| ${est.hora}</span></div>
+                        </div>
+                        ${btnHallazgo ? `<div class="mt-2">${btnHallazgo.replace('text-[10px]', 'text-xs w-full py-2')}</div>` : ''}
+                    </div>`;
+            });
+        }
+
+        // HALLAZGOS
+        function abrirModalHallazgo(hash) {
+            const est = datosGlobales.find(e => e.hash === hash);
+            if (est) {
+                hashActivoAccion = hash;
+                document.getElementById('modal-obs-auditor').innerText = est.comentariosAuditor || 'Sin observaciones.';
+                document.getElementById('modal-accion-sup').value = est.accionSupervisor || '';
+                
+                if (est.accionSupervisor) {
+                    document.getElementById('lbl-estado-accion').innerText = "✓ Registrada";
+                    document.getElementById('btn-guardar-accion').innerText = "Actualizar Acción";
+                } else {
+                    document.getElementById('lbl-estado-accion').innerText = "";
+                    document.getElementById('btn-guardar-accion').innerText = "Registrar Acción";
+                }
+                document.getElementById('modal-hallazgo').classList.remove('hidden');
+            }
+        }
+
+        function cerrarModalHallazgo() { document.getElementById('modal-hallazgo').classList.add('hidden'); }
+
+        async function procesarAccionSupervisor() {
+            const accion = document.getElementById('modal-accion-sup').value.trim();
+            if (!accion) return alert('Describa la acción tomada.');
+
+            toggleLoader('btn-guardar-accion', true);
+            const res = await llamarAPI('guardarAccionSupervisor', { hash: hashActivoAccion, accionTomada: accion });
+            
+            if (res.exito) {
+                cerrarModalHallazgo();
+                cargarDatosDashboard(true); // Recarga silenciosa
+            } else {
+                alert('Error al guardar la acción.');
+                toggleLoader('btn-guardar-accion', false, 'Registrar Acción');
+            }
+        }
+    </script>
+</body>
+</html>

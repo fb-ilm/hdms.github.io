@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HDMS - Producción</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #F5F5F7; }
+        .glass-card { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+        .glass-header { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+        
+        /* Ocultar scrollbar para un look más limpio */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="text-slate-800 min-h-screen flex flex-col" onload="inicializarAplicacion()">
+
+    <header class="glass-header sticky top-0 z-50 border-b border-slate-200 p-4 flex justify-between items-center shadow-sm">
+        <div class="flex items-center gap-3">
+            <div class="flex items-center">
+                <img src="https://raw.githubusercontent.com/fb-ilm/hdms.github.io/refs/heads/main/src/logo/logohdms.png" 
+                    alt="Logo Faux & Wood" 
+                    class="h-8 w-auto object-contain hover:opacity-90 transition-opacity">
+            </div>
+            <h1 class="text-lg font-semibold hidden sm:block tracking-tight">Checklist de proceso</h1>
+        </div>
+        <div id="user-info-bar" class="hidden text-xs sm:text-sm flex items-center gap-3 bg-white px-3 py-1.5 rounded-full shadow-sm border border-slate-100">
+            <span>👤 <strong id="lbl-gafete" class="text-blue-600 font-mono">---</strong></span>
+            <span class="text-slate-300">|</span>
+            <span>⚙️ <strong id="lbl-estacion" class="text-slate-700 font-mono">---</strong></span>
+            <button onclick="cerrarSesion()" class="ml-2 bg-red-50 text-red-600 hover:bg-red-100 px-2 py-1 rounded-full transition font-semibold">
+                Salir
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 flex flex-col items-center justify-center p-4 sm:p-6 w-full max-w-5xl mx-auto">
+        
+        <div id="pantalla-login" class="hidden w-full max-w-sm relative">
+            <div class="absolute -top-10 -right-10 w-32 h-32 bg-blue-400 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
+            
+            <div class="glass-card rounded-[2rem] shadow-xl border border-white p-8 relative z-10">
+                <div class="text-center mb-8">
+                    <h2 class="text-2xl font-bold text-slate-900 tracking-tight">Checklist de proceso</h2>
+                    <p class="text-xs text-slate-500 mt-1">Escanee su gafete y la estación</p>
+                </div>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-1">N° de Empleado</label>
+                        <input id="input-gafete" type="text" placeholder="0#####A" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:bg-white font-mono text-center uppercase transition shadow-inner text-lg">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-1">Estación</label>
+                        <input id="input-estacion" type="text" placeholder="WOD_FIN_XX" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:bg-white font-mono text-center uppercase transition shadow-inner text-lg">
+                    </div>
+                    <button id="btn-acceder" onclick="procesarEscaneo()" class="w-full mt-6 bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-2xl transition shadow-lg flex justify-center items-center">
+                        Ingresar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="pantalla-calendario" class="hidden w-full bg-white p-6 rounded-[2rem] shadow-lg border border-slate-100">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900 tracking-tight">Registro Mensual</h2>
+                    <p class="text-sm text-slate-500">Proceso: <span id="lbl-proceso" class="font-semibold text-purple-600">---</span></p>
+                </div>
+                <div class="flex gap-4 text-xs font-medium bg-slate-50 p-2 rounded-xl border border-slate-100">
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 bg-green-500 rounded-full"></span> Auditado</span>
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 bg-red-500 rounded-full"></span> Omisión</span>
+                </div>
+            </div>
+
+            <div id="grid-calendario" class="grid grid-cols-4 sm:grid-cols-7 gap-3 sm:gap-4">
+                </div>
+        </div>
+
+        <div id="pantalla-formulario" class="hidden w-full max-w-3xl bg-white p-6 rounded-[2rem] shadow-lg border border-slate-100">
+            <div class="mb-6 sticky top-0 bg-white z-10 pb-4 border-b border-slate-100">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-slate-900 text-lg">Día <span id="lbl-dia-form" class="text-blue-600"></span></h3>
+                    <button onclick="mostrarPantalla('pantalla-calendario')" class="text-xs text-slate-500 hover:text-slate-900 bg-slate-50 px-3 py-1.5 rounded-full transition">
+                        ✕ Cancelar
+                    </button>
+                </div>
+                <div class="flex justify-between text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
+                    <span>Avance</span>
+                    <span id="lbl-progreso" class="text-blue-600">0%</span>
+                </div>
+                <div class="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                    <div id="barra-progreso" class="bg-blue-600 h-full w-0 transition-all duration-500 ease-out"></div>
+                </div>
+            </div>
+
+            <div class="max-h-[60vh] overflow-y-auto pr-2 no-scrollbar space-y-8 mb-6 pb-10">
+                
+                <div>
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2">
+                        <span class="w-5 h-px bg-slate-200"></span> 1. Tareas de Estación <span class="w-full h-px bg-slate-200 flex-1"></span>
+                    </h4>
+                    <div id="contenedor-tareas" class="space-y-3"></div>
+                </div>
+
+                <div>
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-purple-400 mb-4 flex items-center gap-2 mt-8">
+                        <span class="w-5 h-px bg-purple-100"></span> 2. Inspección de Proceso <span class="w-full h-px bg-purple-100 flex-1"></span>
+                    </h4>
+                    <div id="contenedor-proceso" class="space-y-3"></div>
+                </div>
+
+            </div>
+
+            <div class="pt-4 border-t border-slate-100">
+                <button id="btn-guardar" onclick="guardarChecklist()" disabled class="w-full bg-slate-200 text-slate-400 font-bold py-4 rounded-2xl transition duration-300 flex justify-center items-center">
+                    Completar
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <div id="modal-qr" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 transition-opacity">
+        <div class="bg-white p-8 rounded-[2rem] shadow-2xl max-w-sm w-full border border-slate-100 relative text-center">
+            <button onclick="cerrarModal()" class="absolute top-4 right-4 w-8 h-8 bg-slate-50 text-slate-400 hover:text-slate-700 rounded-full flex items-center justify-center transition font-bold">✕</button>
+            
+            <div class="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+            </div>
+            
+            <h3 class="font-bold text-slate-900 text-xl mb-1">Registro Exitoso</h3>
+            <p class="text-xs text-slate-500 mb-6">Muestre este código al auditor de calidad</p>
+            
+            <div class="flex justify-center p-4 bg-slate-50 rounded-2xl border border-slate-100 mb-6 mx-auto inline-block">
+                <div id="qr-grande"></div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 text-left text-xs bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                <div class="text-slate-400">Gafete:</div><div class="font-mono font-bold text-slate-800 text-right" id="modal-user"></div>
+                <div class="text-slate-400">Estación:</div><div class="font-mono font-bold text-slate-800 text-right" id="modal-station"></div>
+                <div class="text-slate-400">Hora:</div><div class="text-slate-800 text-right" id="modal-time"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // CONFIGURACIÓN DE RUTAS
+        const API_URL = "https://script.google.com/macros/s/AKfycbzolSSsaBNs6AjIlVasOUVHqnqedETi-Z2WSrHufn05yGyy-6n_fO_ITIxlbX28Mc2V/exec"; 
+        const URL_AUDITOR_PAGE = "https://tusitio.github.io/tu-repo/auditor.html"; // Cambia por tu URL final de Github Pages
+
+        const DIA_ACTUAL = new Date().getDate(); 
+        
+        let sesionOp = { 
+            gafete: '', estacion: '', procesoNombre: '', 
+            preguntasProceso: [], registrosHoy: {} 
+        };
+        
+        // Simulación histórica BD (Para UI de calendario)
+        let bd_registrosMes = {}; 
+
+        const PREGUNTAS_TAREAS = [
+            "¿Está la ubicación clara para el scrap?",
+            "¿Las herramientas están colocadas en la ubicación correcta?",
+            "¿Está usando su equipo de protección personal?",
+            "¿Limpio su área de trabajo?",
+            "¿Están los materiales sobrantes en la ubicación adecuada?"
+        ];
+        
+        let respuestasActuales = {};
+        let totalPreguntas = 0;
+
+        // ================= CONEXIÓN BACKEND =================
+        async function llamarAPI(accion, datos = {}) {
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ accion, ...datos }),
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+                });
+                return await response.json();
+            } catch (error) {
+                return { status: 'error', exito: false, mensaje: "Error de conexión." };
+            }
+        }
+
+        // ================= FLUJO PRINCIPAL =================
+        function inicializarAplicacion() {
+            bloquearRetrocesoNavegador();
+            const guardado = localStorage.getItem('fw_sesion_op');
+            
+            if (guardado) {
+                sesionOp = JSON.parse(guardado);
+                if (sesionOp.gafete && sesionOp.estacion) {
+                    activarUIContexto();
+                    renderizarCalendario();
+                    mostrarPantalla('pantalla-calendario');
+                    return;
+                }
+            }
+            mostrarPantalla('pantalla-login');
+        }
+
+        function bloquearRetrocesoNavegador() {
+            history.pushState(null, null, location.href);
+            window.addEventListener('popstate', () => history.pushState(null, null, location.href));
+        }
+
+        function mostrarPantalla(id) {
+            ['pantalla-login', 'pantalla-calendario', 'pantalla-formulario'].forEach(p => {
+                document.getElementById(p).classList.add('hidden');
+            });
+            document.getElementById(id).classList.remove('hidden');
+            window.scrollTo(0,0);
+        }
+
+        function activarUIContexto() {
+            document.getElementById('lbl-gafete').innerText = sesionOp.gafete;
+            document.getElementById('lbl-estacion').innerText = sesionOp.estacion;
+            document.getElementById('lbl-proceso').innerText = sesionOp.procesoNombre;
+            document.getElementById('user-info-bar').classList.remove('hidden');
+        }
+
+        function cerrarSesion() {
+            if (confirm("¿Finalizar sesión en esta terminal?")) {
+                localStorage.removeItem('fw_sesion_op');
+                location.reload();
+            }
+        }
+
+        function btnLoading(btnId, loading) {
+            const btn = document.getElementById(btnId);
+            if(loading) {
+                btn.disabled = true;
+                btn.innerHTML = `<svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = "Ingresar a la Estación";
+            }
+        }
+
+        // ================= LOGIN =================
+        async function procesarEscaneo() {
+            const gafete = document.getElementById('input-gafete').value.trim().toUpperCase();
+            const estacion = document.getElementById('input-estacion').value.trim().toUpperCase();
+
+            if (!/^0\d{5}[A-Z]$/.test(gafete)) return alert("Formato: 0#####A");
+            if (!estacion.includes("WOD_")) return alert("Falta prefijo 'WOD_'");
+
+            btnLoading('btn-acceder', true);
+            
+            const res = await llamarAPI('obtenerConfiguracionEstacion', { estacion });
+            
+            btnLoading('btn-acceder', false);
+
+            if (res.exito) {
+                sesionOp.gafete = gafete;
+                sesionOp.estacion = estacion;
+                sesionOp.procesoNombre = res.proceso;
+                sesionOp.preguntasProceso = res.preguntas;
+                
+                localStorage.setItem('fw_sesion_op', JSON.stringify(sesionOp));
+                activarUIContexto();
+                renderizarCalendario();
+                mostrarPantalla('pantalla-calendario');
+            } else {
+                alert(res.mensaje);
+            }
+        }
+
+        // ================= CALENDARIO =================
+        function renderizarCalendario() {
+            const grid = document.getElementById('grid-calendario');
+            grid.innerHTML = '';
+            const keyHoy = `${sesionOp.gafete}-${sesionOp.estacion}`;
+
+            for (let dia = 1; dia <= 31; dia++) {
+                const div = document.createElement('div');
+                div.className = "rounded-2xl p-3 sm:p-4 h-24 sm:h-28 flex flex-col justify-between relative transition duration-200 border border-transparent";
+                
+                let numDia = `<span class="font-bold text-sm text-slate-700">${dia}</span>`;
+                
+                if (dia < DIA_ACTUAL) {
+                    div.classList.add('cursor-not-allowed', 'opacity-60');
+                    if (bd_registrosMes[dia] === 1) {
+                        div.classList.add('bg-green-50/50', 'border-green-100');
+                        div.innerHTML = `${numDia} <span class="self-end w-3 h-3 bg-green-400 rounded-full"></span>`;
+                    } else {
+                        div.classList.add('bg-slate-50');
+                        div.innerHTML = `${numDia}`;
+                    }
+                } 
+                else if (dia === DIA_ACTUAL) {
+                    if (sesionOp.registrosHoy[keyHoy]) {
+                        // Completado Hoy -> Mostrar QR
+                        div.classList.add('bg-green-50', 'border-green-200', 'shadow-sm');
+                        div.innerHTML = `
+                            ${numDia} 
+                            <button onclick="mostrarQrModal(sesionOp.registrosHoy['${keyHoy}'])" class="self-center mt-auto p-2 bg-white rounded-xl shadow-sm text-green-600 hover:scale-105 transition" title="Ver QR">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path></svg>
+                            </button>`;
+                    } else {
+                        // Pendiente
+                        div.classList.add('bg-blue-50', 'border-blue-200', 'shadow-sm', 'cursor-pointer', 'hover:bg-blue-100', 'hover:-translate-y-1');
+                        div.innerHTML = `${numDia} <span class="self-center mt-auto bg-blue-600 text-white text-[10px] px-2 py-1 rounded-lg font-bold animate-pulse">HOY</span>`;
+                        div.onclick = () => abrirFormulario(dia);
+                    }
+                } else {
+                    div.classList.add('bg-slate-50', 'cursor-not-allowed', 'opacity-50');
+                    div.innerHTML = `${numDia}`;
+                }
+                grid.appendChild(div);
+            }
+        }
+
+        // ================= FORMULARIO =================
+        function abrirFormulario(dia) {
+            document.getElementById('lbl-dia-form').innerText = dia;
+            respuestasActuales = {};
+            totalPreguntas = PREGUNTAS_TAREAS.length + sesionOp.preguntasProceso.length;
+            actualizarProgreso();
+
+            renderizarPreguntas(PREGUNTAS_TAREAS, 'contenedor-tareas', 't');
+            renderizarPreguntas(sesionOp.preguntasProceso, 'contenedor-proceso', 'p');
+
+            mostrarPantalla('pantalla-formulario');
+        }
+
+        function renderizarPreguntas(lista, contId, prefijo) {
+            const cont = document.getElementById(contId);
+            cont.innerHTML = '';
+            lista.forEach((preg, i) => {
+                const id = `${prefijo}-${i}`;
+                cont.innerHTML += `
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between transition hover:shadow-sm">
+                        <span class="text-sm font-medium text-slate-700 flex-1 leading-snug">${i+1}. ${preg}</span>
+                        <div class="flex gap-2 w-full sm:w-auto bg-white p-1 rounded-xl shadow-sm border border-slate-100">
+                            <button onclick="responder('${id}', 'Cumple')" id="btn-${id}-Cumple" class="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold text-slate-500 hover:bg-slate-50 transition">✓</button>
+                            <button onclick="responder('${id}', 'No Cumple')" id="btn-${id}-No Cumple" class="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold text-slate-500 hover:bg-slate-50 transition">✕</button>
+                            <button onclick="responder('${id}', 'N/A')" id="btn-${id}-NA" class="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold text-slate-500 hover:bg-slate-50 transition">-</button>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        function responder(id, valor) {
+            respuestasActuales[id] = valor;
+            
+            // Reset styles
+            ['Cumple', 'No Cumple', 'NA'].forEach(v => {
+                const btn = document.getElementById(`btn-${id}-${v}`);
+                if(btn) btn.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold text-slate-500 hover:bg-slate-50 transition";
+            });
+
+            // Set active
+            const mapId = valor === 'N/A' ? 'NA' : valor;
+            const btn = document.getElementById(`btn-${id}-${mapId}`);
+            
+            if(valor === 'Cumple') btn.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold bg-green-500 text-white shadow-sm transition transform scale-105";
+            if(valor === 'No Cumple') btn.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold bg-red-500 text-white shadow-sm transition transform scale-105";
+            if(valor === 'N/A') btn.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold bg-slate-700 text-white shadow-sm transition transform scale-105";
+
+            actualizarProgreso();
+        }
+
+        function actualizarProgreso() {
+            const act = Object.keys(respuestasActuales).length;
+            const pct = Math.round((act / totalPreguntas) * 100);
+            document.getElementById('lbl-progreso').innerText = `${pct}%`;
+            document.getElementById('barra-progreso').style.width = `${pct}%`;
+
+            const btn = document.getElementById('btn-guardar');
+            if (act === totalPreguntas) {
+                btn.disabled = false;
+                btn.className = "w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-2xl shadow-lg transition duration-300 transform hover:-translate-y-1";
+            } else {
+                btn.disabled = true;
+                btn.className = "w-full bg-slate-200 text-slate-400 font-bold py-4 rounded-2xl cursor-not-allowed transition duration-300";
+            }
+        }
+
+        async function guardarChecklist() {
+            const btn = document.getElementById('btn-guardar');
+            btn.disabled = true;
+            btn.innerText = "Guardando Sello Digital...";
+
+            const ahora = new Date();
+            const hashId = Math.random().toString(36).substring(2, 10).toUpperCase();
+            
+            let resTareas = {}, resProceso = {};
+            PREGUNTAS_TAREAS.forEach((p, i) => resTareas[p] = respuestasActuales[`t-${i}`]);
+            sesionOp.preguntasProceso.forEach((p, i) => resProceso[p] = respuestasActuales[`p-${i}`]);
+
+            const payload = {
+                gafete: sesionOp.gafete, estacion: sesionOp.estacion,
+                turno: ahora.getHours() < 15 ? "Turno 1" : "Turno 2",
+                hash: hashId, respuestasTareas: resTareas, respuestasProceso: resProceso
+            };
+
+            const res = await llamarAPI('guardarRegistroChecklist', { datos: payload });
+
+            if(res.exito) {
+                const metaVisual = {
+                    gafete: sesionOp.gafete, estacion: sesionOp.estacion, 
+                    hora: ahora.toTimeString().split(' ')[0], hash: hashId
+                };
+                
+                sesionOp.registrosHoy[`${sesionOp.gafete}-${sesionOp.estacion}`] = metaVisual;
+                localStorage.setItem('fw_sesion_op', JSON.stringify(sesionOp));
+                
+                renderizarCalendario();
+                mostrarPantalla('pantalla-calendario');
+                mostrarQrModal(metaVisual);
+            } else {
+                alert("Error guardando en BD. Intente nuevamente.");
+                btn.disabled = false;
+                btn.innerText = "Completar Registro ALCOA+";
+            }
+        }
+
+        // ================= QR =================
+        function mostrarQrModal(datos) {
+            document.getElementById('modal-user').innerText = datos.gafete;
+            document.getElementById('modal-station').innerText = datos.estacion;
+            document.getElementById('modal-time').innerText = datos.hora;
+
+            const qrContainer = document.getElementById('qr-grande');
+            qrContainer.innerHTML = '';
+            
+            // Construye URL para auditor
+            const urlAuditor = `${URL_AUDITOR_PAGE}?hash=${datos.hash}`;
+
+            new QRCode(qrContainer, {
+                text: urlAuditor,
+                width: 200, height: 200,
+                colorDark : "#0f172a", colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+
+            document.getElementById('modal-qr').classList.remove('hidden');
+        }
+
+        function cerrarModal() {
+            document.getElementById('modal-qr').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>

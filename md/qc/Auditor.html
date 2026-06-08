@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HDMS - Calidad</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #F5F5F7; }
+        .glass-header { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+        .glass-card { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+    </style>
+</head>
+<body class="text-slate-800 min-h-screen flex flex-col" onload="inicializarModulo()">
+
+    <header class="glass-header sticky top-0 z-50 border-b border-slate-200 px-6 py-4 flex justify-between items-center shadow-sm">
+        <div class="flex items-center gap-4">
+            <div class="flex items-center">
+                <img src="https://raw.githubusercontent.com/fb-ilm/hdms.github.io/refs/heads/main/src/logo/logohdms.png" 
+                    alt="Logo Faux & Wood" 
+                    class="h-8 w-auto object-contain hover:opacity-90 transition-opacity">
+            </div>
+            <h1 class="text-xl font-semibold hidden sm:block tracking-tight">Portal de Calidad</h1>
+        </div>
+        <div class="text-sm font-semibold text-slate-500 bg-white px-4 py-1.5 rounded-full border border-slate-200 shadow-sm">
+            Módulo Inspector
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-5xl mx-auto w-full p-4 sm:p-8">
+        
+        <div id="estado-carga" class="flex flex-col items-center justify-center py-20 text-slate-400">
+            <svg class="animate-spin h-8 w-8 mb-4 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+            <p class="text-sm">Conectando con la planta...</p>
+        </div>
+
+        <div id="vista-validacion" class="hidden flex justify-center items-center py-6">
+            <div class="glass-card w-full max-w-md rounded-[2rem] shadow-xl border border-white p-8 relative overflow-hidden">
+                <button onclick="volverAlDashboard()" id="btn-volver" class="hidden absolute top-6 right-6 text-slate-400 hover:text-slate-800 text-sm font-bold">✕ Cerrar</button>
+                
+                <div class="text-center mb-6">
+                    <div class="w-14 h-14 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </div>
+                    <h2 class="text-2xl font-bold text-slate-900">Evaluación de Estación</h2>
+                </div>
+
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-6 space-y-2 text-sm">
+                    <div class="flex justify-between border-b border-slate-200 pb-2"><span class="text-slate-500">Operador</span><span class="font-mono font-bold text-slate-900" id="val-user">---</span></div>
+                    <div class="flex justify-between border-b border-slate-200 py-2"><span class="text-slate-500">Estación</span><span class="font-mono font-bold text-slate-900" id="val-station">---</span></div>
+                    <div class="flex justify-between pt-2"><span class="text-slate-500">Estatus Reportado</span><span class="font-bold text-blue-600" id="val-status">---</span></div>
+                </div>
+
+                <div id="form-firma" class="space-y-4">
+                    <div>
+                        <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-1">ID Auditor Calidad</label>
+                        <input id="input-auditor" type="text" placeholder="0#####A" class="w-full p-4 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 font-mono uppercase transition">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-1">Observaciones / Hallazgos</label>
+                        <textarea id="input-comentarios" placeholder="Si hay hallazgos, descríbalos aquí..." class="w-full p-4 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-500 transition text-sm h-24"></textarea>
+                    </div>
+                    <div class="flex gap-3 pt-2">
+                        <button id="btn-aprobar" onclick="enviarAuditoria('AUDITADO')" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 rounded-xl transition shadow-sm">
+                            ✓ Validar
+                        </button>
+                        <button id="btn-hallazgo" onclick="enviarAuditoria('HALLAZGO')" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3.5 rounded-xl transition shadow-sm">
+                            ⚠ Hallazgo
+                        </button>
+                    </div>
+                </div>
+
+                <div id="msg-auditado" class="hidden text-center bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                    <p class="text-slate-800 font-bold text-lg mb-1" id="lbl-resultado-final">Registro Procesado</p>
+                    <p class="text-xs text-slate-500">La evaluación ha sido guardada en la base de datos.</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="vista-dashboard" class="hidden">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-900">Estado de la Planta</h2>
+                    <p class="text-sm text-slate-500">Monitoreo de auditorías en tiempo real.</p>
+                </div>
+                <div class="flex w-full sm:w-auto gap-3">
+                    <input type="text" id="input-buscador" onkeyup="filtrarPlanta()" placeholder="Buscar estación..." class="flex-1 sm:w-48 px-4 py-2 bg-white rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-100 text-sm">
+                    <select id="select-filtro" onchange="filtrarPlanta()" class="bg-white border border-slate-200 text-slate-700 text-sm rounded-xl px-4 py-2 cursor-pointer focus:ring-2 focus:ring-blue-100">
+                        <option value="TODAS">Todas</option>
+                        <option value="COMPLETO">Por Auditar (Amarillo)</option>
+                        <option value="AUDITADO">Auditadas Ok (Verde)</option>
+                        <option value="HALLAZGO">Con Hallazgos (Rojo)</option>
+                        <option value="SIN REGISTRO">Sin Registro (Gris)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="grid-planta" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                </div>
+        </div>
+
+    </main>
+
+    <script>
+        // REEMPLAZA CON TU URL DE APPS SCRIPT
+        const API_URL = "https://script.google.com/macros/s/AKfycbzolSSsaBNs6AjIlVasOUVHqnqedETi-Z2WSrHufn05yGyy-6n_fO_ITIxlbX28Mc2V/exec"; 
+        
+        let hashActivo = null;
+        let estacionActiva = null;
+        let datosGlobales = [];
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const hashURL = urlParams.get('hash');
+
+        async function llamarAPI(accion, datos = {}) {
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ accion, ...datos }),
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+                });
+                return await response.json();
+            } catch (error) {
+                return { status: 'error', exito: false, mensaje: "Error de conexión." };
+            }
+        }
+
+        function inicializarModulo() {
+            if (hashURL) { cargarRegistroEspecifico(hashURL); } 
+            else { cargarDashboardPlanta(); }
+        }
+
+        async function cargarRegistroEspecifico(hash) {
+            hashActivo = hash;
+            document.getElementById('estado-carga').classList.remove('hidden');
+            const res = await llamarAPI('obtenerDatosPorHash', { hash: hash });
+            document.getElementById('estado-carga').classList.add('hidden');
+
+            if (res.exito) {
+                estacionActiva = res.estacion;
+                prepararModal(res.operador, res.estacion, res.estatus);
+            } else {
+                alert("Código QR inválido o registro no encontrado.");
+                if(!hashURL) volverAlDashboard();
+            }
+        }
+
+        function abrirValidacionManual(hash, estacion) {
+            document.getElementById('vista-dashboard').classList.add('hidden');
+            
+            if (hash && hash !== 'null') {
+                cargarRegistroEspecifico(hash);
+            } else {
+                // Generar hallazgo en estación vacía
+                hashActivo = null;
+                estacionActiva = estacion;
+                prepararModal('---', estacion, 'SIN REGISTRO');
+            }
+        }
+
+        function prepararModal(operador, estacion, estatus) {
+            document.getElementById('val-user').innerText = operador;
+            document.getElementById('val-station').innerText = estacion;
+            document.getElementById('val-status').innerText = estatus;
+            document.getElementById('input-comentarios').value = '';
+            
+            document.getElementById('vista-validacion').classList.remove('hidden');
+            if(!hashURL) document.getElementById('btn-volver').classList.remove('hidden');
+
+            if (estatus === 'AUDITADO' || estatus === 'HALLAZGO') {
+                document.getElementById('form-firma').classList.add('hidden');
+                document.getElementById('msg-auditado').classList.remove('hidden');
+                document.getElementById('lbl-resultado-final').innerText = estatus === 'AUDITADO' ? '✓ Auditado Ok' : '⚠ Hallazgo Registrado';
+                document.getElementById('lbl-resultado-final').className = estatus === 'AUDITADO' ? 'text-green-600 font-bold text-lg mb-1' : 'text-red-600 font-bold text-lg mb-1';
+            } else {
+                document.getElementById('form-firma').classList.remove('hidden');
+                document.getElementById('msg-auditado').classList.add('hidden');
+                
+                // Si no hay registro previo, ocultar botón de Aprobar (Solo se puede marcar Hallazgo)
+                if (estatus === 'SIN REGISTRO') {
+                    document.getElementById('btn-aprobar').classList.add('hidden');
+                    document.getElementById('val-status').className = 'font-bold text-slate-400';
+                } else {
+                    document.getElementById('btn-aprobar').classList.remove('hidden');
+                    document.getElementById('val-status').className = 'font-bold text-blue-600';
+                }
+            }
+        }
+
+        async function enviarAuditoria(estadoFinal) {
+            const auditorId = document.getElementById('input-auditor').value.trim().toUpperCase();
+            const comentarios = document.getElementById('input-comentarios').value.trim();
+
+            if (!/^0\d{5}[A-Z]$/.test(auditorId)) return alert("El ID de auditor debe tener formato 0#####A");
+            if (estadoFinal === 'HALLAZGO' && comentarios === '') return alert("Para reportar un hallazgo, debe escribir una observación.");
+
+            document.getElementById('btn-aprobar').disabled = true;
+            document.getElementById('btn-hallazgo').disabled = true;
+
+            const res = await llamarAPI('procesarAuditoria', { 
+                hash: hashActivo, 
+                estacion: estacionActiva,
+                auditorId: auditorId, 
+                estadoFinal: estadoFinal,
+                comentarios: comentarios
+            });
+
+            if (res.exito) {
+                document.getElementById('form-firma').classList.add('hidden');
+                document.getElementById('msg-auditado').classList.remove('hidden');
+                document.getElementById('lbl-resultado-final').innerText = estadoFinal === 'AUDITADO' ? '✓ Auditado Ok' : '⚠ Hallazgo Registrado';
+                document.getElementById('lbl-resultado-final').className = estadoFinal === 'AUDITADO' ? 'text-green-600 font-bold text-lg mb-1' : 'text-red-600 font-bold text-lg mb-1';
+                
+                if(!hashURL) cargarDashboardPlanta(true);
+            } else {
+                alert("Error al procesar. Intente de nuevo.");
+                document.getElementById('btn-aprobar').disabled = false;
+                document.getElementById('btn-hallazgo').disabled = false;
+            }
+        }
+
+        function volverAlDashboard() {
+            document.getElementById('input-auditor').value = '';
+            document.getElementById('vista-validacion').classList.add('hidden');
+            document.getElementById('vista-dashboard').classList.remove('hidden');
+        }
+
+        async function cargarDashboardPlanta(fondo = false) {
+            if(!fondo) document.getElementById('estado-carga').classList.remove('hidden');
+            const res = await llamarAPI('obtenerDashboardAuditor');
+            document.getElementById('estado-carga').classList.add('hidden');
+
+            if (res.exito) {
+                datosGlobales = res.datos;
+                filtrarPlanta();
+                document.getElementById('vista-dashboard').classList.remove('hidden');
+            } else {
+                alert("Error al cargar la información de la planta.");
+            }
+        }
+
+        function filtrarPlanta() {
+            const txt = document.getElementById('input-buscador').value.toLowerCase();
+            const est = document.getElementById('select-filtro').value;
+
+            const filtrados = datosGlobales.filter(d => 
+                (d.codigo.toLowerCase().includes(txt) || d.proceso.toLowerCase().includes(txt)) && 
+                (est === 'TODAS' || d.estatus === est)
+            );
+            renderizarPlanta(filtrados);
+        }
+
+        function renderizarPlanta(datos) {
+            const grid = document.getElementById('grid-planta');
+            grid.innerHTML = '';
+
+            datos.forEach(est => {
+                let badge = 'bg-slate-100 text-slate-500', btnHtml = '';
+                
+                if (est.estatus === 'AUDITADO') badge = 'bg-green-100 text-green-700'; 
+                else if (est.estatus === 'HALLAZGO') badge = 'bg-red-100 text-red-700';
+                else if (est.estatus === 'COMPLETO') badge = 'bg-yellow-100 text-yellow-700';
+
+                if (est.estatus === 'COMPLETO' || est.estatus === 'SIN REGISTRO') {
+                    let txtBtn = est.estatus === 'COMPLETO' ? 'Revisar Checklist' : 'Reportar Hallazgo';
+                    btnHtml = `<button onclick="abrirValidacionManual('${est.hash}', '${est.codigo}')" class="w-full mt-3 bg-white border border-slate-200 text-slate-700 text-xs font-bold py-2.5 rounded-xl hover:bg-slate-50 transition shadow-sm">${txtBtn}</button>`;
+                }
+
+                grid.innerHTML += `
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition flex flex-col">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <h3 class="font-mono font-bold text-slate-900 text-lg">${est.codigo}</h3>
+                                <p class="text-[10px] text-slate-400 uppercase tracking-wider">${est.proceso}</p>
+                            </div>
+                            <span class="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${badge}">${est.estatus}</span>
+                        </div>
+                        <div class="mt-auto">
+                            <div class="flex justify-between items-center text-xs text-slate-500 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                <div><span class="block text-[10px] text-slate-400 mb-0.5">Operador</span><span class="font-mono font-semibold text-slate-700">${est.operador}</span></div>
+                                <div class="text-right"><span class="block text-[10px] text-slate-400 mb-0.5">Hora</span><span class="font-mono font-semibold text-slate-700">${est.hora}</span></div>
+                            </div>
+                            ${btnHtml}
+                        </div>
+                    </div>`;
+            });
+        }
+    </script>
+</body>
+</html>
