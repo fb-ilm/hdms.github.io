@@ -13,6 +13,10 @@
         .toggle-checkbox:checked { right: 0; border-color: #34C759; }
         .toggle-checkbox:checked + .toggle-label { background-color: #34C759; }
         .toggle-checkbox:disabled + .toggle-label { opacity: 0.5; cursor: not-allowed; }
+        
+        /* Ocultar scrollbar para tabla histórica */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body class="text-slate-800 min-h-screen flex flex-col" onload="inicializarAplicacion()">
@@ -24,7 +28,7 @@
                 <div class="flex justify-center items-center mb-6">
                     <img src="https://raw.githubusercontent.com/fb-ilm/hdms.github.io/refs/heads/main/src/logo/logohdms.png" 
                     alt="Logo Faux & Wood" 
-                    class="w-60 h-20 object-contain  rounded-2xl">
+                    class="w-60 h-20 object-contain rounded-2xl">
                 </div>
                 <h2 class="text-2xl font-bold text-slate-900">Portal Supervisor</h2>
                 <p class="text-sm text-slate-500 mt-1">Control de procesos</p>
@@ -59,15 +63,22 @@
         </div>
     </div>
 
-    <div id="pantalla-dashboard" class="hidden flex-1 flex flex-col">
+    <div id="contenedor-app" class="hidden flex-1 flex flex-col">
         <header class="glass-header sticky top-0 z-50 border-b border-slate-200 px-6 py-4 flex justify-between items-center shadow-sm">
             <div class="flex items-center gap-4">
                 <div class="flex items-center">
-                    <img src="https://raw.githubusercontent.com/fb-ilm/hdms.github.io/refs/heads/main/src/logo/logohdms.png" alt="Logo F&W" class="h-8 w-auto object-contain hover:opacity-90 transition-opacity">
+                    <img src="https://raw.githubusercontent.com/fb-ilm/hdms.github.io/refs/heads/main/src/logo/logohdms.png" alt="Logo HDMS" class="h-8 w-auto object-contain hover:opacity-90 transition-opacity">
                 </div>
                 <h1 class="text-xl font-semibold hidden sm:block text-slate-900">Control de Estaciones</h1>
+                
+                <div class="hidden sm:flex bg-slate-100 p-1 rounded-lg ml-2">
+                    <button id="tab-dash" onclick="cambiarVistaApp('dashboard')" class="px-4 py-1.5 text-sm font-semibold rounded-md bg-white shadow-sm text-slate-800 transition">Hoy</button>
+                    <button id="tab-hist" onclick="cambiarVistaApp('historico')" class="px-4 py-1.5 text-sm font-semibold rounded-md text-slate-500 hover:text-slate-800 transition">Histórico</button>
+                </div>
             </div>
             <div class="flex items-center gap-3">
+                <button class="sm:hidden text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md border border-blue-100" onclick="cambiarVistaApp('historico')">Histórico</button>
+
                 <img id="img-perfil" src="" alt="Perfil" class="w-10 h-10 rounded-full border-2 border-white shadow-sm object-cover bg-slate-200">
                 <div class="text-right hidden sm:block">
                     <p class="text-sm font-semibold text-slate-900" id="lbl-nombre-sup">---</p>
@@ -79,7 +90,7 @@
             </div>
         </header>
 
-        <main class="max-w-7xl mx-auto w-full p-4 sm:p-8">
+        <main id="vista-principal" class="max-w-7xl mx-auto w-full p-4 sm:p-8">
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100"><span class="text-xs font-semibold text-slate-400 uppercase">Total</span><span class="block text-3xl font-bold text-slate-800" id="kpi-total">0</span></div>
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100"><span class="text-xs font-semibold text-blue-500 uppercase">Habilitadas</span><span class="block text-3xl font-bold text-blue-600" id="kpi-activas">0</span></div>
@@ -120,6 +131,52 @@
             </div>
             <div id="grid-movil" class="grid grid-cols-1 gap-4 md:hidden"></div>
         </main>
+
+        <main id="vista-historico" class="hidden max-w-7xl mx-auto w-full p-4 sm:p-8 flex-1">
+            <div class="mb-6">
+                <h2 class="text-2xl font-bold text-slate-900">Histórico de Auditoría</h2>
+                <p class="text-sm text-slate-500">Consulte los registros y acciones de días anteriores.</p>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100"><span class="text-xs font-semibold text-slate-400 uppercase">Habilitadas</span><span class="block text-3xl font-bold text-slate-800" id="hist-kpi-habilitadas">0</span></div>
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100"><span class="text-xs font-semibold text-blue-500 uppercase">Completas</span><span class="block text-3xl font-bold text-blue-600" id="hist-kpi-completas">0</span></div>
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100"><span class="text-xs font-semibold text-red-500 uppercase">Hallazgos</span><span class="block text-3xl font-bold text-red-600" id="hist-kpi-hallazgos">0</span></div>
+                <div class="bg-slate-900 p-5 rounded-2xl shadow-sm text-white"><span class="text-xs font-medium text-slate-300 uppercase">Cumplimiento</span><span class="block text-4xl font-bold" id="hist-kpi-cumplimiento">0%</span></div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-4 mb-6 bg-white p-4 rounded-2xl shadow-sm border border-slate-100 items-end">
+                <div class="flex-1 w-full">
+                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1 ml-1">Fecha Inicio</label>
+                    <input type="date" id="hist-inicio" class="w-full p-2.5 bg-slate-50 rounded-xl focus:ring-2 focus:ring-blue-100 text-sm border border-slate-200">
+                </div>
+                <div class="flex-1 w-full">
+                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1 ml-1">Fecha Fin</label>
+                    <input type="date" id="hist-fin" class="w-full p-2.5 bg-slate-50 rounded-xl focus:ring-2 focus:ring-blue-100 text-sm border border-slate-200">
+                </div>
+                <button id="btn-buscar-hist" onclick="consultarHistorico()" class="w-full sm:w-auto bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 px-6 rounded-xl transition shadow-sm h-[42px]">
+                    Buscar Registros
+                </button>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-x-auto no-scrollbar">
+                <table class="w-full text-left min-w-[800px]">
+                    <thead class="bg-slate-50 text-xs uppercase text-slate-500 border-b">
+                        <tr>
+                            <th class="p-4">Fecha/Hora</th>
+                            <th class="p-4">Estación</th>
+                            <th class="p-4">Operador</th>
+                            <th class="p-4">Estatus Final</th>
+                            <th class="p-4">Auditor</th>
+                            <th class="p-4 w-1/3">Trazabilidad</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-historico" class="text-sm divide-y divide-slate-100">
+                        <tr><td colspan="6" class="p-8 text-center text-slate-400">Seleccione un rango de fechas para consultar.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
     </div>
 
     <div id="modal-hallazgo" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 transition-opacity">
@@ -147,9 +204,21 @@
         </div>
     </div>
 
+    <div id="modal-alerta" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-[60] transition-opacity">
+        <div class="bg-white p-6 rounded-[2rem] shadow-2xl max-w-sm w-full border border-slate-100 relative text-center">
+            <div class="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4" id="alerta-icono-bg">
+                <span class="text-xl font-bold" id="alerta-icono">⚠</span>
+            </div>
+            <h3 class="font-bold text-slate-900 text-lg mb-2" id="alerta-titulo">Atención</h3>
+            <p class="text-sm text-slate-500 mb-6" id="alerta-mensaje"></p>
+            <button onclick="cerrarAlerta()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-xl transition shadow-lg">
+                Entendido
+            </button>
+        </div>
+    </div>
+
     <script>
-        // ¡¡IMPORTANTE!! REEMPLAZA ESTO CON LA URL DE TU SCRIPT
-        const API_URL = "https://script.google.com/macros/s/AKfycbzolSSsaBNs6AjIlVasOUVHqnqedETi-Z2WSrHufn05yGyy-6n_fO_ITIxlbX28Mc2V/exec";
+        const API_URL = "https://script.google.com/macros/s/AKfycbyzlV8UIgxdK1Pi4tk2Zommyw9KP-x6dDs5AQEalpT5FQN9Ip1BTHLliQOzOXqx9tRe/exec";
 
         let sesionSup = JSON.parse(localStorage.getItem('fw_sesion_sup')) || null;
         let datosGlobales = [];
@@ -181,33 +250,79 @@
             else { btn.disabled = false; btn.innerText = txtOriginal; }
         }
 
-        // INIT
+        // CONTROL POP-UP ALERTAS
+        function mostrarAlerta(mensaje, tipo = 'warning') {
+            document.getElementById('alerta-mensaje').innerText = mensaje;
+            const iconBg = document.getElementById('alerta-icono-bg');
+            const icon = document.getElementById('alerta-icono');
+            const titulo = document.getElementById('alerta-titulo');
+
+            if (tipo === 'error') {
+                iconBg.className = "w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 bg-red-100 text-red-600";
+                icon.innerText = "✖";
+                titulo.innerText = "Error";
+            } else if (tipo === 'info') {
+                iconBg.className = "w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 bg-blue-100 text-blue-600";
+                icon.innerText = "ℹ";
+                titulo.innerText = "Información";
+            } else {
+                iconBg.className = "w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 bg-yellow-100 text-yellow-600";
+                icon.innerText = "⚠";
+                titulo.innerText = "Atención";
+            }
+            document.getElementById('modal-alerta').classList.remove('hidden');
+        }
+
+        function cerrarAlerta() {
+            document.getElementById('modal-alerta').classList.add('hidden');
+        }
+
+        // INIT Y NAVEGACIÓN
         function inicializarAplicacion() {
             if (sesionSup) {
                 document.getElementById('pantalla-login').classList.add('hidden');
-                document.getElementById('pantalla-dashboard').classList.remove('hidden');
+                document.getElementById('contenedor-app').classList.remove('hidden');
                 document.getElementById('lbl-nombre-sup').innerText = sesionSup.nombre;
 
                 if(sesionSup.foto) {
                     document.getElementById('img-perfil').src = sesionSup.foto;
                 }
+                
+                const hoy = new Date().toISOString().split('T')[0];
+                document.getElementById('hist-inicio').value = hoy;
+                document.getElementById('hist-fin').value = hoy;
+                
                 cargarDatosDashboard();
             } else {
                 document.getElementById('pantalla-login').classList.remove('hidden');
-                document.getElementById('pantalla-dashboard').classList.add('hidden');
+                document.getElementById('contenedor-app').classList.add('hidden');
             }
         }
 
-        // LOGIN
+        function cambiarVistaApp(vista) {
+            if(vista === 'dashboard') {
+                document.getElementById('vista-historico').classList.add('hidden');
+                document.getElementById('vista-principal').classList.remove('hidden');
+                document.getElementById('tab-dash').className = "px-4 py-1.5 text-sm font-semibold rounded-md bg-white shadow-sm text-slate-800 transition";
+                document.getElementById('tab-hist').className = "px-4 py-1.5 text-sm font-semibold rounded-md text-slate-500 hover:text-slate-800 transition";
+            } else {
+                document.getElementById('vista-principal').classList.add('hidden');
+                document.getElementById('vista-historico').classList.remove('hidden');
+                document.getElementById('tab-hist').className = "px-4 py-1.5 text-sm font-semibold rounded-md bg-white shadow-sm text-slate-800 transition";
+                document.getElementById('tab-dash').className = "px-4 py-1.5 text-sm font-semibold rounded-md text-slate-500 hover:text-slate-800 transition";
+            }
+        }
+
+        // LOGIN Y SETUP
         async function iniciarSesion() {
             const user = document.getElementById('input-sup-user').value.trim();
             const pass = document.getElementById('input-sup-pass').value.trim();
-            if(!user || !pass) return alert("Complete los campos");
+            if(!user || !pass) return mostrarAlerta("Complete los campos de usuario y contraseña.", "warning");
 
             toggleLoader('btn-sup-login', true);
             const hash = await generarHash(pass);
             const res = await llamarAPI('autenticarSupervisor', { usuario: user, passwordHash: hash });
-            toggleLoader('btn-sup-login', false, 'Ingresar al Panel');
+            toggleLoader('btn-sup-login', false, 'Ingresar');
 
             if (res.requiereSetup) {
                 usuarioTempSetup = res.id;
@@ -218,20 +333,25 @@
                 localStorage.setItem('fw_sesion_sup', JSON.stringify(res));
                 sesionSup = res;
                 inicializarAplicacion();
-            } else { alert(res.mensaje); }
+            } else { mostrarAlerta(res.mensaje, "error"); }
         }
 
         async function guardarPassword() {
             const p1 = document.getElementById('input-setup-pass1').value;
             const p2 = document.getElementById('input-setup-pass2').value;
-            if(p1.length < 6) return alert("Mínimo 6 caracteres.");
-            if(p1 !== p2) return alert("Las contraseñas no coinciden.");
+            if(p1.length < 6) return mostrarAlerta("La contraseña debe tener mínimo 6 caracteres.", "warning");
+            if(p1 !== p2) return mostrarAlerta("Las contraseñas no coinciden.", "warning");
 
             toggleLoader('btn-sup-setup', true);
             const res = await llamarAPI('configurarNuevoPassword', { usuario: usuarioTempSetup, nuevoPasswordHash: await generarHash(p1) });
             toggleLoader('btn-sup-setup', false, 'Guardar Contraseña');
 
-            if(res.exito) { alert("Guardada. Inicie sesión."); cancelarSetup(); } else { alert(res.mensaje); }
+            if(res.exito) { 
+                mostrarAlerta("Contraseña guardada. Inicie sesión.", "info"); 
+                cancelarSetup(); 
+            } else { 
+                mostrarAlerta(res.mensaje, "error"); 
+            }
         }
 
         function cancelarSetup() {
@@ -251,7 +371,7 @@
                 datosGlobales = res.datos;
                 poblarFiltroPrefijos(datosGlobales);
                 filtrarEstaciones();
-            } else { alert("Error cargando datos: " + res.mensaje); }
+            } else { mostrarAlerta("Error cargando datos: " + res.mensaje, "error"); }
         }
 
         function poblarFiltroPrefijos(datos) {
@@ -262,7 +382,6 @@
                 if (partes.length >= 2) prefijosUnicos.set(`${partes[0]}_${partes[1]}`, est.proceso);
             });
             
-            // Para mantener la seleccion al actualizar
             const valorActual = select.value;
             select.innerHTML = '<option value="TODOS">Todos los Prefijos</option>';
             prefijosUnicos.forEach((nombre, pre) => select.innerHTML += `<option value="${pre}">${pre} (${nombre})</option>`);
@@ -305,7 +424,6 @@
             datos.forEach((est, i) => {
                 let badge = 'bg-slate-100 text-slate-500', dot = 'bg-slate-300', btnHallazgo = '';
                 
-                // 1. Colores base
                 if (est.estatus === 'COMPLETO' || est.estatus === 'AUDITADO') { 
                     badge = 'bg-green-100 text-green-700'; dot = 'bg-green-500'; 
                 } else if (est.estatus === 'PENDIENTE') { 
@@ -314,21 +432,15 @@
                     badge = 'bg-red-600 text-white shadow-md'; dot = 'bg-red-600 animate-bounce';
                 }
 
-                // 2. Lógica del botón de Acción
-                // Si es un hallazgo activo, pedir que se registre acción
                 if (est.estatus === 'HALLAZGO' && !est.accionSupervisor) {
                     btnHallazgo = `<button onclick="abrirModalHallazgo('${est.hash}')" class="mt-2 text-[10px] font-bold py-1 px-3 rounded-lg transition border text-red-600 bg-red-50 border-red-200 hover:bg-red-100">⚠ Registrar Acción</button>`;
                 } 
-                // Si ya se registró una acción (sin importar si el estatus ya cambió a COMPLETO), permitir consultarla
                 else if (est.accionSupervisor) {
                     btnHallazgo = `<button onclick="abrirModalHallazgo('${est.hash}')" class="mt-2 text-[10px] font-bold py-1 px-3 rounded-lg transition border text-blue-600 border-blue-200 bg-blue-50">Ver Acción Tomada</button>`;
                 }
 
                 let disabled = (est.estatus === 'COMPLETO' || est.estatus === 'AUDITADO' || est.estatus === 'HALLAZGO') ? 'disabled' : '';
-
-                // ... (El resto del código de ESCRITORIO y MÓVIL se queda exactamente igual)
                 
-                // ESCRITORIO
                 tbody.innerHTML += `
                     <tr class="hover:bg-slate-50 border-b border-slate-100">
                         <td class="p-4">
@@ -346,7 +458,6 @@
                         <td class="p-4"><div class="font-mono">${est.operador}</div><div class="text-[10px] text-slate-400">${est.hora}</div></td>
                     </tr>`;
 
-                // MÓVIL
                 grid.innerHTML += `
                     <div class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col">
                         <div class="flex justify-between items-center mb-3">
@@ -388,18 +499,90 @@
 
         async function procesarAccionSupervisor() {
             const accion = document.getElementById('modal-accion-sup').value.trim();
-            if (!accion) return alert('Describa la acción tomada.');
+            if (!accion) return mostrarAlerta('Describa la acción tomada.', 'warning');
 
             toggleLoader('btn-guardar-accion', true);
             const res = await llamarAPI('guardarAccionSupervisor', { hash: hashActivoAccion, accionTomada: accion });
             
             if (res.exito) {
                 cerrarModalHallazgo();
-                cargarDatosDashboard(true); // Recarga silenciosa
+                cargarDatosDashboard(true); 
             } else {
-                alert('Error al guardar la acción.');
+                mostrarAlerta('Error al guardar la acción.', 'error');
                 toggleLoader('btn-guardar-accion', false, 'Registrar Acción');
             }
+        }
+
+        // HISTÓRICO Y KPIS
+        async function consultarHistorico() {
+            const fInicio = document.getElementById('hist-inicio').value;
+            const fFin = document.getElementById('hist-fin').value;
+            
+            if (!fInicio || !fFin) return mostrarAlerta('Seleccione un rango de fechas válido.', 'warning');
+
+            const btn = document.getElementById('btn-buscar-hist');
+            btn.innerHTML = 'Buscando...'; btn.disabled = true;
+
+            const res = await llamarAPI('obtenerHistorico', { fechaInicio: fInicio, fechaFin: fFin });
+
+            btn.innerHTML = 'Buscar Registros'; btn.disabled = false;
+
+            if (res.exito) {
+                renderizarHistorico(res); // Se pasa todo el objeto 'res'
+            } else {
+                mostrarAlerta('Error al obtener histórico.', 'error');
+            }
+        }
+
+        function renderizarHistorico(res) {
+            const tbody = document.getElementById('tbody-historico');
+            const datos = res.datos || [];
+            tbody.innerHTML = '';
+            
+            if (datos.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-slate-400">No hay registros en este rango.</td></tr>';
+                
+                document.getElementById('hist-kpi-habilitadas').innerText = '0';
+                document.getElementById('hist-kpi-completas').innerText = '0';
+                document.getElementById('hist-kpi-hallazgos').innerText = '0';
+                document.getElementById('hist-kpi-cumplimiento').innerText = '0%';
+                
+                mostrarAlerta('No se encontraron datos para el rango de fechas seleccionado.', 'info');
+                return;
+            }
+
+            // Procesar KPIs con los datos que vienen del backend
+            const completas = res.kpi ? res.kpi.totalAuditadas : datos.length;
+            const habilitadas = res.kpi ? res.kpi.totalPlanificadas : completas; 
+            const hallazgos = datos.filter(d => d.estatus === 'HALLAZGO' || d.comentariosAuditor !== '---').length;
+            const cumplimiento = habilitadas > 0 ? Math.round((completas / habilitadas) * 100) : 0;
+
+            document.getElementById('hist-kpi-habilitadas').innerText = habilitadas;
+            document.getElementById('hist-kpi-completas').innerText = completas;
+            document.getElementById('hist-kpi-hallazgos').innerText = hallazgos;
+            document.getElementById('hist-kpi-cumplimiento').innerText = (cumplimiento > 100 ? 100 : cumplimiento) + '%';
+
+            datos.forEach(d => {
+                let badge = 'bg-slate-100 text-slate-500';
+                if (d.estatus === 'COMPLETO' || d.estatus === 'AUDITADO') badge = 'bg-green-100 text-green-700';
+                else if (d.estatus === 'HALLAZGO') badge = 'bg-red-100 text-red-700';
+
+                let alertaPlan = (d.esPlanificada && d.esPlanificada === 'NO') ? `<span class="block text-[9px] text-red-500 font-bold mt-1">No Planificada</span>` : '';
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-50 border-b border-slate-100 text-sm transition">
+                        <td class="p-4 whitespace-nowrap"><span class="font-bold text-slate-700">${d.fecha}</span><br><span class="text-xs text-slate-400">${d.hora}</span></td>
+                        <td class="p-4"><span class="font-mono font-bold">${d.estacion}</span>${alertaPlan}</td>
+                        <td class="p-4 font-mono">${d.operador}</td>
+                        <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-bold ${badge}">${d.estatus}</span></td>
+                        <td class="p-4"><span class="text-xs font-mono text-slate-600">${d.auditor}</span></td>
+                        <td class="p-4 text-xs">
+                            ${d.comentariosAuditor !== '---' ? `<div class="mb-1"><span class="font-bold text-red-500">Hallazgo:</span> <span class="text-slate-600">${d.comentariosAuditor}</span></div>` : '<div class="text-slate-400 italic">Sin observaciones</div>'}
+                            ${d.accionSupervisor !== '---' ? `<div><span class="font-bold text-blue-500">Acción:</span> <span class="text-slate-600">${d.accionSupervisor}</span></div>` : ''}
+                        </td>
+                    </tr>
+                `;
+            });
         }
     </script>
 </body>
