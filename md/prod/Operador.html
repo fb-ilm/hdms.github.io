@@ -150,18 +150,15 @@
 
     <script>
         // CONFIGURACIÓN DE RUTAS
-        const API_URL = "https://script.google.com/macros/s/AKfycbzolSSsaBNs6AjIlVasOUVHqnqedETi-Z2WSrHufn05yGyy-6n_fO_ITIxlbX28Mc2V/exec"; 
-        const URL_AUDITOR_PAGE = "https://fb-ilm.github.io/hdms.github.io/md/qc/Auditor.html"; // Cambia por tu URL final de Github Pages
+        const API_URL = "https://script.google.com/macros/s/AKfycbyzlV8UIgxdK1Pi4tk2Zommyw9KP-x6dDs5AQEalpT5FQN9Ip1BTHLliQOzOXqx9tRe/exec"; 
+        const URL_AUDITOR_PAGE = "https://fb-ilm.github.io/hdms.github.io/md/qc/Auditor.html"; 
 
         const DIA_ACTUAL = new Date().getDate(); 
         
         let sesionOp = { 
-            gafete: '', estacion: '', procesoNombre: '', 
+            gafete: '', estacion: '', procesoNombre: '', esPlanificada: false,
             preguntasProceso: [], registrosHoy: {} 
         };
-        
-        // Simulación histórica BD (Para UI de calendario)
-        let bd_registrosMes = {}; 
 
         const PREGUNTAS_TAREAS = [
             "¿Está la ubicación clara para el scrap?",
@@ -197,7 +194,7 @@
                 sesionOp = JSON.parse(guardado);
                 if (sesionOp.gafete && sesionOp.estacion) {
                     activarUIContexto();
-                    renderizarCalendario();
+                    cargarHistorialReal(); // Carga los datos reales
                     mostrarPantalla('pantalla-calendario');
                     return;
                 }
@@ -239,11 +236,11 @@
                 btn.innerHTML = `<svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
             } else {
                 btn.disabled = false;
-                btn.innerHTML = "Ingresar a la Estación";
+                btn.innerHTML = "Ingresar";
             }
         }
 
-        // ================= LOGIN =================
+        // ================= LOGIN Y VERIFICACIÓN =================
         async function procesarEscaneo() {
             const gafete = document.getElementById('input-gafete').value.trim().toUpperCase();
             const estacion = document.getElementById('input-estacion').value.trim().toUpperCase();
@@ -252,9 +249,7 @@
             if (!estacion.includes("WOD_")) return alert("Falta prefijo 'WOD_'");
 
             btnLoading('btn-acceder', true);
-            
             const res = await llamarAPI('obtenerConfiguracionEstacion', { estacion });
-            
             btnLoading('btn-acceder', false);
 
             if (res.exito) {
@@ -262,21 +257,55 @@
                 sesionOp.estacion = estacion;
                 sesionOp.procesoNombre = res.proceso;
                 sesionOp.preguntasProceso = res.preguntas;
+                sesionOp.esPlanificada = res.esPlanificada; // Guardamos si está en plan
                 
+                if (!sesionOp.registrosHoy) sesionOp.registrosHoy = {};
+
                 localStorage.setItem('fw_sesion_op', JSON.stringify(sesionOp));
                 activarUIContexto();
-                renderizarCalendario();
+                
+                if(!res.esPlanificada) {
+                    alert("Aviso: Esta estación no está en el plan de hoy, pero se registrará su actividad.");
+                }
+
+                cargarHistorialReal();
                 mostrarPantalla('pantalla-calendario');
             } else {
                 alert(res.mensaje);
             }
         }
 
-        // ================= CALENDARIO =================
-        function renderizarCalendario() {
+        // ================= CALENDARIO REAL DE BD =================
+        async function cargarHistorialReal() {
+            const res = await llamarAPI('obtenerHistorialOperador', { gafete: sesionOp.gafete });
+            if (res.exito) {
+                // Actualizamos nuestro objeto local de "Hoy" con los datos del servidor por si cambió de dispositivo
+                let keyBusqueda = `${DIA_ACTUAL}-${sesionOp.estacion}`;
+                if(res.datos && res.datos[keyBusqueda]) {
+                     sesionOp.registrosHoy[`${sesionOp.gafete}-${sesionOp.estacion}`] = {
+                         gafete: res.datos[keyBusqueda].gafete,
+                         estacion: res.datos[keyBusqueda].estacion,
+                         hora: res.datos[keyBusqueda].hora,
+                         hash: res.datos[keyBusqueda].hash
+                     };
+                     localStorage.setItem('fw_sesion_op', JSON.stringify(sesionOp));
+                }
+                renderizarCalendario(res.datos);
+            } else {
+                renderizarCalendario({});
+            }
+        }
+
+        function renderizarCalendario(datosHistorial) {
             const grid = document.getElementById('grid-calendario');
             grid.innerHTML = '';
             const keyHoy = `${sesionOp.gafete}-${sesionOp.estacion}`;
+
+            let diasTrabajados = new Set();
+            for(let key in datosHistorial) {
+                let dia = parseInt(key.split('-')[0]); 
+                diasTrabajados.add(dia);
+            }
 
             for (let dia = 1; dia <= 31; dia++) {
                 const div = document.createElement('div');
@@ -286,7 +315,7 @@
                 
                 if (dia < DIA_ACTUAL) {
                     div.classList.add('cursor-not-allowed', 'opacity-60');
-                    if (bd_registrosMes[dia] === 1) {
+                    if (diasTrabajados.has(dia)) {
                         div.classList.add('bg-green-50/50', 'border-green-100');
                         div.innerHTML = `${numDia} <span class="self-end w-3 h-3 bg-green-400 rounded-full"></span>`;
                     } else {
@@ -295,8 +324,7 @@
                     }
                 } 
                 else if (dia === DIA_ACTUAL) {
-                    if (sesionOp.registrosHoy[keyHoy]) {
-                        // Completado Hoy -> Mostrar QR
+                    if (sesionOp.registrosHoy && sesionOp.registrosHoy[keyHoy]) {
                         div.classList.add('bg-green-50', 'border-green-200', 'shadow-sm');
                         div.innerHTML = `
                             ${numDia} 
@@ -304,7 +332,6 @@
                                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path></svg>
                             </button>`;
                     } else {
-                        // Pendiente
                         div.classList.add('bg-blue-50', 'border-blue-200', 'shadow-sm', 'cursor-pointer', 'hover:bg-blue-100', 'hover:-translate-y-1');
                         div.innerHTML = `${numDia} <span class="self-center mt-auto bg-blue-600 text-white text-[10px] px-2 py-1 rounded-lg font-bold animate-pulse">HOY</span>`;
                         div.onclick = () => abrirFormulario(dia);
@@ -350,13 +377,11 @@
         function responder(id, valor) {
             respuestasActuales[id] = valor;
             
-            // Reset styles
             ['Cumple', 'No Cumple', 'NA'].forEach(v => {
                 const btn = document.getElementById(`btn-${id}-${v}`);
                 if(btn) btn.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold text-slate-500 hover:bg-slate-50 transition";
             });
 
-            // Set active
             const mapId = valor === 'N/A' ? 'NA' : valor;
             const btn = document.getElementById(`btn-${id}-${mapId}`);
             
@@ -389,16 +414,21 @@
             btn.innerText = "Guardando Sello Digital...";
 
             const ahora = new Date();
-            const hashId = Math.random().toString(36).substring(2, 10).toUpperCase();
+            const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(sesionOp.gafete + ahora.getTime().toString()));
+            const hashId = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('').substring(0,8).toUpperCase();
             
             let resTareas = {}, resProceso = {};
             PREGUNTAS_TAREAS.forEach((p, i) => resTareas[p] = respuestasActuales[`t-${i}`]);
             sesionOp.preguntasProceso.forEach((p, i) => resProceso[p] = respuestasActuales[`p-${i}`]);
 
             const payload = {
-                gafete: sesionOp.gafete, estacion: sesionOp.estacion,
                 turno: ahora.getHours() < 15 ? "Turno 1" : "Turno 2",
-                hash: hashId, respuestasTareas: resTareas, respuestasProceso: resProceso
+                estacion: sesionOp.estacion,
+                gafete: sesionOp.gafete,
+                respuestasTareas: resTareas, 
+                respuestasProceso: resProceso,
+                hash: hashId,
+                esPlanificada: sesionOp.esPlanificada || false
             };
 
             const res = await llamarAPI('guardarRegistroChecklist', { datos: payload });
@@ -412,13 +442,13 @@
                 sesionOp.registrosHoy[`${sesionOp.gafete}-${sesionOp.estacion}`] = metaVisual;
                 localStorage.setItem('fw_sesion_op', JSON.stringify(sesionOp));
                 
-                renderizarCalendario();
+                cargarHistorialReal(); // Refrescar el backend en el UI
                 mostrarPantalla('pantalla-calendario');
                 mostrarQrModal(metaVisual);
             } else {
                 alert("Error guardando en BD. Intente nuevamente.");
                 btn.disabled = false;
-                btn.innerText = "Completar Registro ALCOA+";
+                btn.innerText = "Completar";
             }
         }
 
@@ -431,7 +461,6 @@
             const qrContainer = document.getElementById('qr-grande');
             qrContainer.innerHTML = '';
             
-            // Construye URL para auditor
             const urlAuditor = `${URL_AUDITOR_PAGE}?hash=${datos.hash}`;
 
             new QRCode(qrContainer, {
