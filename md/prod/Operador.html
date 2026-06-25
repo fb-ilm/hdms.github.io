@@ -150,7 +150,7 @@
 
     <script>
         // CONFIGURACIÓN DE RUTAS
-        const API_URL = "https://script.google.com/macros/s/AKfycbyzlV8UIgxdK1Pi4tk2Zommyw9KP-x6dDs5AQEalpT5FQN9Ip1BTHLliQOzOXqx9tRe/exec"; 
+        const API_URL = "https://script.google.com/macros/s/AKfycbz4UozM-paSDQnj60W-ZGnfj1O3dqXE4NKV8sPpmTGqztod7AV1Z0hh9FVUuQ5_ZZOp/exec"; 
         const URL_AUDITOR_PAGE = "https://fb-ilm.github.io/hdms.github.io/md/qc/Auditor.html"; 
 
         const DIA_ACTUAL = new Date().getDate(); 
@@ -436,7 +436,8 @@
             if(res.exito) {
                 const metaVisual = {
                     gafete: sesionOp.gafete, estacion: sesionOp.estacion, 
-                    hora: ahora.toTimeString().split(' ')[0], hash: hashId
+                    hora: ahora.toTimeString().split(' ')[0], hash: hashId,
+                    qrData: res.qrData // Guardamos el JSON Plano devuelto por Google Script
                 };
                 
                 sesionOp.registrosHoy[`${sesionOp.gafete}-${sesionOp.estacion}`] = metaVisual;
@@ -461,13 +462,21 @@
             const qrContainer = document.getElementById('qr-grande');
             qrContainer.innerHTML = '';
             
-            const urlAuditor = `${URL_AUDITOR_PAGE}?hash=${datos.hash}`;
+            // Usamos el JSON Plano si está disponible, sino (para registros viejos), como contingencia mostramos la URL
+            let textoQR = datos.qrData;
+            if (!textoQR) {
+                 textoQR = `${URL_AUDITOR_PAGE}?hash=${datos.hash}`;
+            }
 
+            // Configuramos un QR un poco más grande y con Corrección "L" (Low) 
+            // esto hace que la matriz sea menos densa y más fácil de escanear por pistolas láser
             new QRCode(qrContainer, {
-                text: urlAuditor,
-                width: 200, height: 200,
-                colorDark : "#0f172a", colorLight : "#ffffff",
-                correctLevel : QRCode.CorrectLevel.H
+                text: textoQR,
+                width: 250, 
+                height: 250,
+                colorDark : "#0f172a", 
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.L
             });
 
             document.getElementById('modal-qr').classList.remove('hidden');
