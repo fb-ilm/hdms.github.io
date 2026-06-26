@@ -133,7 +133,7 @@
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
             </div>
             
-            <h3 class="font-bold text-slate-900 text-xl mb-1">Registro Exitoso</h3>
+            <h3 class="font-bold text-slate-900 text-xl mb-1">Registro de Estación</h3>
             <p class="text-xs text-slate-500 mb-6">Muestre este código al auditor de calidad</p>
             
             <div class="flex justify-center p-4 bg-slate-50 rounded-2xl border border-slate-100 mb-6 mx-auto inline-block">
@@ -150,14 +150,15 @@
 
     <script>
         // CONFIGURACIÓN DE RUTAS
-        const API_URL = "https://script.google.com/macros/s/AKfycbz4UozM-paSDQnj60W-ZGnfj1O3dqXE4NKV8sPpmTGqztod7AV1Z0hh9FVUuQ5_ZZOp/exec"; 
+        const API_URL = "https://script.google.com/macros/s/AKfycbxwzLOoB68rEGBEyInVNEIzQBKLon_a9oxWfTAeNEadJBDU5ECwfnsyeDTlqhw8nukn/exec"; 
         const URL_AUDITOR_PAGE = "https://fb-ilm.github.io/hdms.github.io/md/qc/Auditor.html"; 
 
         const DIA_ACTUAL = new Date().getDate(); 
         
+        // El objeto de sesión ahora almacena el historial del mes completo
         let sesionOp = { 
             gafete: '', estacion: '', procesoNombre: '', esPlanificada: false,
-            preguntasProceso: [], registrosHoy: {} 
+            preguntasProceso: [], historialMes: {} 
         };
 
         const PREGUNTAS_TAREAS = [
@@ -257,9 +258,9 @@
                 sesionOp.estacion = estacion;
                 sesionOp.procesoNombre = res.proceso;
                 sesionOp.preguntasProceso = res.preguntas;
-                sesionOp.esPlanificada = res.esPlanificada; // Guardamos si está en plan
+                sesionOp.esPlanificada = res.esPlanificada; 
                 
-                if (!sesionOp.registrosHoy) sesionOp.registrosHoy = {};
+                if (!sesionOp.historialMes) sesionOp.historialMes = {};
 
                 localStorage.setItem('fw_sesion_op', JSON.stringify(sesionOp));
                 activarUIContexto();
@@ -277,20 +278,13 @@
 
         // ================= CALENDARIO REAL DE BD =================
         async function cargarHistorialReal() {
-            const res = await llamarAPI('obtenerHistorialOperador', { gafete: sesionOp.gafete });
+            // CORRECCIÓN 2: Enviamos gafete Y estacion para filtrar correctamente
+            const res = await llamarAPI('obtenerHistorialOperador', { gafete: sesionOp.gafete, estacion: sesionOp.estacion });
             if (res.exito) {
-                // Actualizamos nuestro objeto local de "Hoy" con los datos del servidor por si cambió de dispositivo
-                let keyBusqueda = `${DIA_ACTUAL}-${sesionOp.estacion}`;
-                if(res.datos && res.datos[keyBusqueda]) {
-                     sesionOp.registrosHoy[`${sesionOp.gafete}-${sesionOp.estacion}`] = {
-                         gafete: res.datos[keyBusqueda].gafete,
-                         estacion: res.datos[keyBusqueda].estacion,
-                         hora: res.datos[keyBusqueda].hora,
-                         hash: res.datos[keyBusqueda].hash
-                     };
-                     localStorage.setItem('fw_sesion_op', JSON.stringify(sesionOp));
-                }
-                renderizarCalendario(res.datos);
+                // Guardamos directamente el diccionario de días que retorna el backend
+                sesionOp.historialMes = res.datos; 
+                localStorage.setItem('fw_sesion_op', JSON.stringify(sesionOp));
+                renderizarCalendario(sesionOp.historialMes);
             } else {
                 renderizarCalendario({});
             }
@@ -299,13 +293,6 @@
         function renderizarCalendario(datosHistorial) {
             const grid = document.getElementById('grid-calendario');
             grid.innerHTML = '';
-            const keyHoy = `${sesionOp.gafete}-${sesionOp.estacion}`;
-
-            let diasTrabajados = new Set();
-            for(let key in datosHistorial) {
-                let dia = parseInt(key.split('-')[0]); 
-                diasTrabajados.add(dia);
-            }
 
             for (let dia = 1; dia <= 31; dia++) {
                 const div = document.createElement('div');
@@ -313,33 +300,28 @@
                 
                 let numDia = `<span class="font-bold text-sm text-slate-700">${dia}</span>`;
                 
-                if (dia < DIA_ACTUAL) {
-                    div.classList.add('cursor-not-allowed', 'opacity-60');
-                    if (diasTrabajados.has(dia)) {
-                        div.classList.add('bg-green-50/50', 'border-green-100');
-                        div.innerHTML = `${numDia} <span class="self-end w-3 h-3 bg-green-400 rounded-full"></span>`;
-                    } else {
-                        div.classList.add('bg-slate-50');
-                        div.innerHTML = `${numDia}`;
-                    }
+                // Si el día existe en el diccionario (es decir, hay registro para esta estación y operador)
+                if (datosHistorial[dia]) {
+                    div.classList.add('bg-green-50', 'border-green-200', 'shadow-sm');
+                    // CORRECCIÓN 1 y 3: Cualquier día con registro permite ver el QR
+                    div.innerHTML = `
+                        ${numDia} 
+                        <button onclick="mostrarQrModalDia(${dia})" class="self-center mt-auto p-2 bg-white rounded-xl shadow-sm text-green-600 hover:scale-105 transition" title="Ver QR">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path></svg>
+                        </button>`;
                 } 
+                // Si no hay registro y es HOY (Permite registrar)
                 else if (dia === DIA_ACTUAL) {
-                    if (sesionOp.registrosHoy && sesionOp.registrosHoy[keyHoy]) {
-                        div.classList.add('bg-green-50', 'border-green-200', 'shadow-sm');
-                        div.innerHTML = `
-                            ${numDia} 
-                            <button onclick="mostrarQrModal(sesionOp.registrosHoy['${keyHoy}'])" class="self-center mt-auto p-2 bg-white rounded-xl shadow-sm text-green-600 hover:scale-105 transition" title="Ver QR">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path></svg>
-                            </button>`;
-                    } else {
-                        div.classList.add('bg-blue-50', 'border-blue-200', 'shadow-sm', 'cursor-pointer', 'hover:bg-blue-100', 'hover:-translate-y-1');
-                        div.innerHTML = `${numDia} <span class="self-center mt-auto bg-blue-600 text-white text-[10px] px-2 py-1 rounded-lg font-bold animate-pulse">HOY</span>`;
-                        div.onclick = () => abrirFormulario(dia);
-                    }
-                } else {
+                    div.classList.add('bg-blue-50', 'border-blue-200', 'shadow-sm', 'cursor-pointer', 'hover:bg-blue-100', 'hover:-translate-y-1');
+                    div.innerHTML = `${numDia} <span class="self-center mt-auto bg-blue-600 text-white text-[10px] px-2 py-1 rounded-lg font-bold animate-pulse">HOY</span>`;
+                    div.onclick = () => abrirFormulario(dia);
+                } 
+                // Si es un día pasado sin registro, o un día futuro
+                else {
                     div.classList.add('bg-slate-50', 'cursor-not-allowed', 'opacity-50');
                     div.innerHTML = `${numDia}`;
                 }
+                
                 grid.appendChild(div);
             }
         }
@@ -435,16 +417,20 @@
 
             if(res.exito) {
                 const metaVisual = {
-                    gafete: sesionOp.gafete, estacion: sesionOp.estacion, 
-                    hora: ahora.toTimeString().split(' ')[0], hash: hashId,
-                    qrData: res.qrData // Guardamos el JSON Plano devuelto por Google Script
+                    gafete: sesionOp.gafete, 
+                    estacion: sesionOp.estacion, 
+                    hora: ahora.toTimeString().split(' ')[0].substring(0,5), 
+                    hash: hashId,
+                    qrData: res.qrData 
                 };
                 
-                sesionOp.registrosHoy[`${sesionOp.gafete}-${sesionOp.estacion}`] = metaVisual;
+                // Agregamos el registro de hoy al historial local inmediatamente
+                if(!sesionOp.historialMes) sesionOp.historialMes = {};
+                sesionOp.historialMes[DIA_ACTUAL] = metaVisual;
                 localStorage.setItem('fw_sesion_op', JSON.stringify(sesionOp));
                 
-                cargarHistorialReal(); // Refrescar el backend en el UI
                 mostrarPantalla('pantalla-calendario');
+                renderizarCalendario(sesionOp.historialMes);
                 mostrarQrModal(metaVisual);
             } else {
                 alert("Error guardando en BD. Intente nuevamente.");
@@ -454,6 +440,13 @@
         }
 
         // ================= QR =================
+        // CORRECCIÓN 3: Función puente para abrir QRs asegurando que tenga los datos
+        function mostrarQrModalDia(dia) {
+            if(sesionOp.historialMes && sesionOp.historialMes[dia]) {
+                mostrarQrModal(sesionOp.historialMes[dia]);
+            }
+        }
+
         function mostrarQrModal(datos) {
             document.getElementById('modal-user').innerText = datos.gafete;
             document.getElementById('modal-station').innerText = datos.estacion;
@@ -462,14 +455,11 @@
             const qrContainer = document.getElementById('qr-grande');
             qrContainer.innerHTML = '';
             
-            // Usamos el JSON Plano si está disponible, sino (para registros viejos), como contingencia mostramos la URL
             let textoQR = datos.qrData;
             if (!textoQR) {
                  textoQR = `${URL_AUDITOR_PAGE}?hash=${datos.hash}`;
             }
 
-            // Configuramos un QR un poco más grande y con Corrección "L" (Low) 
-            // esto hace que la matriz sea menos densa y más fácil de escanear por pistolas láser
             new QRCode(qrContainer, {
                 text: textoQR,
                 width: 250, 
