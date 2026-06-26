@@ -139,7 +139,7 @@
             </div>
 
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100"><span class="text-xs font-semibold text-slate-400 uppercase">Habilitadas</span><span class="block text-3xl font-bold text-slate-800" id="hist-kpi-habilitadas">0</span></div>
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100"><span class="text-xs font-semibold text-slate-400 uppercase">Universo Real</span><span class="block text-3xl font-bold text-slate-800" id="hist-kpi-habilitadas">0</span></div>
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100"><span class="text-xs font-semibold text-blue-500 uppercase">Completas</span><span class="block text-3xl font-bold text-blue-600" id="hist-kpi-completas">0</span></div>
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100"><span class="text-xs font-semibold text-red-500 uppercase">Hallazgos</span><span class="block text-3xl font-bold text-red-600" id="hist-kpi-hallazgos">0</span></div>
                 <div class="bg-slate-900 p-5 rounded-2xl shadow-sm text-white"><span class="text-xs font-medium text-slate-300 uppercase">Cumplimiento</span><span class="block text-4xl font-bold" id="hist-kpi-cumplimiento">0%</span></div>
@@ -218,7 +218,7 @@
     </div>
 
     <script>
-        const API_URL = "https://script.google.com/macros/s/AKfycbyzlV8UIgxdK1Pi4tk2Zommyw9KP-x6dDs5AQEalpT5FQN9Ip1BTHLliQOzOXqx9tRe/exec";
+        const API_URL = "https://script.google.com/macros/s/AKfycbxwzLOoB68rEGBEyInVNEIzQBKLon_a9oxWfTAeNEadJBDU5ECwfnsyeDTlqhw8nukn/exec";
 
         let sesionSup = JSON.parse(localStorage.getItem('fw_sesion_sup')) || null;
         let datosGlobales = [];
@@ -313,7 +313,7 @@
             }
         }
 
-        // LOGIN Y SETUP
+        // LOGIN Y SETUP (Modificado para forzar la contraseña)
         async function iniciarSesion() {
             const user = document.getElementById('input-sup-user').value.trim();
             const pass = document.getElementById('input-sup-pass').value.trim();
@@ -528,12 +528,13 @@
             btn.innerHTML = 'Buscar Registros'; btn.disabled = false;
 
             if (res.exito) {
-                renderizarHistorico(res); // Se pasa todo el objeto 'res'
+                renderizarHistorico(res);
             } else {
                 mostrarAlerta('Error al obtener histórico.', 'error');
             }
         }
 
+        // Modificado con la lógica de Universo Dinámico
         function renderizarHistorico(res) {
             const tbody = document.getElementById('tbody-historico');
             const datos = res.datos || [];
@@ -551,16 +552,19 @@
                 return;
             }
 
-            // Procesar KPIs con los datos que vienen del backend
             const completas = res.kpi ? res.kpi.totalAuditadas : datos.length;
-            const habilitadas = res.kpi ? res.kpi.totalPlanificadas : completas; 
+            // El total habilitado ahora refleja el Universo Real que retorna Google Script
+            const universoReal = res.kpi ? res.kpi.totalUniverso : completas; 
             const hallazgos = datos.filter(d => d.estatus === 'HALLAZGO' || d.comentariosAuditor !== '---').length;
-            const cumplimiento = habilitadas > 0 ? Math.round((completas / habilitadas) * 100) : 0;
+            
+            // Cálculo asegurado
+            const cumplimiento = universoReal > 0 ? Math.round((completas / universoReal) * 100) : 0;
 
-            document.getElementById('hist-kpi-habilitadas').innerText = habilitadas;
+            document.getElementById('hist-kpi-habilitadas').innerText = universoReal;
             document.getElementById('hist-kpi-completas').innerText = completas;
             document.getElementById('hist-kpi-hallazgos').innerText = hallazgos;
-            document.getElementById('hist-kpi-cumplimiento').innerText = (cumplimiento > 100 ? 100 : cumplimiento) + '%';
+            // Limitamos a 100% por seguridad visual
+            document.getElementById('hist-kpi-cumplimiento').innerText = Math.min(cumplimiento, 100) + '%';
 
             datos.forEach(d => {
                 let badge = 'bg-slate-100 text-slate-500';
