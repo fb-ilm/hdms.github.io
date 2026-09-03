@@ -247,7 +247,13 @@
             const estacion = document.getElementById('input-estacion').value.trim().toUpperCase();
 
             if (!/^0\d{5}[A-Z]$/.test(gafete)) return alert("Formato: 0#####A");
-            if (!estacion.includes("WOD_") || !estacion.includes("ROL_")) return alert("Falta prefijo 'EST_'");
+            if (!estacion.includes("WOD_")) {
+                if(!estacion.includes("ROL_")) {
+                    return alert("Falta prefijo 'EST_'");
+                }
+            }else{
+             return alert("Falta prefijo 'EST_'");   
+            }
 
             btnLoading('btn-acceder', true);
             const res = await llamarAPI('obtenerConfiguracionEstacion', { estacion });
