@@ -351,9 +351,14 @@
             cont.innerHTML = '';
             lista.forEach((preg, i) => {
                 const id = `${prefijo}-${i}`;
+                
+                // NUEVO: Buscamos "CTQ" y lo reemplazamos por un span con diseño
+                // Usamos la /g por si la palabra aparece más de una vez en la misma pregunta
+                const pregResaltada = preg.replace(/CTQ/g, '<span class="bg-purple-600 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shadow-sm mx-1 tracking-wider">CTQ</span>');
+                
                 cont.innerHTML += `
                     <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between transition hover:shadow-sm">
-                        <span class="text-sm font-medium text-slate-700 flex-1 leading-snug">${i+1}. ${preg}</span>
+                        <span class="text-sm font-medium text-slate-700 flex-1 leading-snug">${i+1}. ${pregResaltada}</span>
                         <div class="flex gap-2 w-full sm:w-auto bg-white p-1 rounded-xl shadow-sm border border-slate-100">
                             <button onclick="responder('${id}', 'Cumple')" id="btn-${id}-Cumple" class="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold text-slate-500 hover:bg-slate-50 transition">✓</button>
                             <button onclick="responder('${id}', 'No Cumple')" id="btn-${id}-No Cumple" class="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold text-slate-500 hover:bg-slate-50 transition">✕</button>
